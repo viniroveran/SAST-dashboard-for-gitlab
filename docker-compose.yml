@@ -1,0 +1,19 @@
+services:
+  sast-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sast-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/db:/app/db
+    env_file:
+      - .env.local
+    networks:
+      - sast-network
+
+networks:
+  sast-network:
+    driver: bridge
