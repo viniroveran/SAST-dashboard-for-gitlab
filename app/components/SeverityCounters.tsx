@@ -1,39 +1,76 @@
+'use client';
+
 import React from 'react';
 import {SeverityCountersProps} from "@/app/types/vulnerability";
+import {Card as HeroUICard} from "@heroui/react";
+import {
+  ShieldExclamation,
+  TriangleExclamationFill,
+  TriangleExclamation,
+  CircleExclamation,
+  ShieldCheck,
+  Shield
+} from "@gravity-ui/icons";
 
-const SeverityCounters: React.FC<SeverityCountersProps> = ({ vulnerabilities }) => {
+const SeverityCounters: React.FC<SeverityCountersProps> = ({vulnerabilities}) => {
+  const fixedSeveritiesOrder = ['Critical', 'High', 'Medium', 'Low', 'Info'];
+
   const severityCounts = vulnerabilities.reduce((acc, vul) => {
     const severity = vul.severity || 'Unknown';
     acc[severity] = (acc[severity] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const sortedSeverities = Object.keys(severityCounts).sort((a, b) => {
-    const order = { 'Critical': 1, 'High': 2, 'Medium': 3, 'Low': 4, 'Info': 5, 'Unknown': 6 };
-    return (order[a as keyof typeof order] || 99) - (order[b as keyof typeof order] || 99);
-  });
-
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'Critical': return 'bg-red-600';
-      case 'High': return 'bg-orange-500';
-      case 'Medium': return 'bg-yellow-400';
-      case 'Low': return 'bg-blue-400';
-      case 'Info': return 'bg-green-400';
-      default: return 'bg-gray-400';
+      case 'Critical':
+        return 'bg-red-600 text-gray-900';
+      case 'High':
+        return 'bg-orange-600 text-gray-900';
+      case 'Medium':
+        return 'bg-yellow-500 text-gray-900';
+      case 'Low':
+        return 'bg-green-500 text-gray-900';
+      case 'Info':
+        return 'bg-blue-500 text-gray-900';
+      default:
+        return 'bg-gray-500 text-gray-900';
+    }
+  };
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'Critical':
+        return <TriangleExclamationFill className="size-6 text-gray-900"/>;
+      case 'High':
+        return <TriangleExclamation className="size-6 text-gray-900"/>;
+      case 'Medium':
+        return <CircleExclamation className="size-6 text-gray-900"/>;
+      case 'Low':
+        return <ShieldExclamation className="size-6 text-gray-900"/>;
+      case 'Info':
+        return <ShieldCheck className="size-6 text-gray-900"/>;
+      default:
+        return <Shield className="size-6 text-gray-900"/>;
     }
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-      {sortedSeverities.map((severity) => (
-        <div
+    <div className="grid grid-cols-5 gap-4 mb-8 w-full content-center">
+      {fixedSeveritiesOrder.map((severity) => (
+        <HeroUICard
           key={severity}
-          className={`p-4 rounded-lg shadow-md text-white flex flex-col items-center justify-center ${getSeverityColor(severity)}`}
+          className={`p-4 rounded-lg shadow-md flex flex-col items-center justify-center ${getSeverityColor(severity)}`}
         >
-          <span className="text-3xl font-bold">{severityCounts[severity]}</span>
-          <span className="text-lg">{severity}</span>
-        </div>
+          {getSeverityIcon(severity)}
+          <HeroUICard.Header className="!p-0 !pb-2">
+            <HeroUICard.Title className="text-4xl font-bold text-center text-gray-900">
+              {severityCounts[severity] || 0}
+            </HeroUICard.Title>
+            <HeroUICard.Description className="text-xl font-bold !text-inherit pt-3">
+              {severity}
+            </HeroUICard.Description>
+          </HeroUICard.Header>
+        </HeroUICard>
       ))}
     </div>
   );

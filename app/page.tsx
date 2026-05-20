@@ -16,7 +16,7 @@ export default function Home() {
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setError("Nenhum arquivo selecionado.");
+      setError("No file selected.");
       setReport(null);
       setFileName(null);
       return;
@@ -34,12 +34,12 @@ export default function Home() {
         const parsedReport: SastReport = JSON.parse(content);
 
         if (!parsedReport.vulnerabilities || !Array.isArray(parsedReport.vulnerabilities)) {
-          throw new Error("O arquivo JSON não parece ser um relatório de vulnerabilidades SAST válido.");
+          throw new Error("The JSON file does not appear to be a valid SAST vulnerability report.");
         }
 
         setReport(parsedReport);
       } catch (parseError: any) {
-        setError(`Erro ao processar o arquivo: ${parseError.message}`);
+        setError(`Error processing file: ${parseError.message}`);
         setReport(null);
       } finally {
         setLoading(false);
@@ -47,7 +47,7 @@ export default function Home() {
     };
 
     reader.onerror = () => {
-      setError("Erro ao ler o arquivo.");
+      setError("Error reading file.");
       setLoading(false);
       setReport(null);
     };
@@ -59,7 +59,7 @@ export default function Home() {
     <>
       <Head>
         <title>SAST Vulnerability Dashboard</title>
-        <meta name="description" content="Dashboard para relatórios SAST do GitLab"/>
+        <meta name="description" content="Dashboard for GitLab SAST reports"/>
         <link rel="icon" href="/favicon.ico"/>
       </Head>
 
@@ -77,19 +77,15 @@ export default function Home() {
           size="lg"
           isDisabled={loading}
         >
-          {fileName ? `Arquivo: ${fileName}` : 'Carregar Relatório SAST (JSON)'}
+          {fileName ? `File: ${fileName}` : 'Upload SAST Report (JSON)'}
         </Button>
-        {loading && <p className="mt-4 text-blue-500 dark:text-blue-400">Carregando...</p>}
+        {loading && <p className="mt-4 text-blue-500 dark:text-blue-400">Loading...</p>}
         {error && <p className="mt-4 text-red-600 dark:text-red-400">{error}</p>}
       </div>
 
       {report && report.vulnerabilities.length > 0 && (
         <>
           <SeverityCounters vulnerabilities={report.vulnerabilities}/>
-
-          <h2 className="text-3xl font-semibold text-gray-700 dark:text-gray-200 mb-6 mt-10">
-            Detalhes das Vulnerabilidades
-          </h2>
           <VulnerabilityTable vulnerabilities={report.vulnerabilities}/>
         </>
       )}
@@ -97,14 +93,7 @@ export default function Home() {
       {report && report.vulnerabilities.length === 0 && (
         <div
           className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-          <p>Nenhuma vulnerabilidade encontrada neste relatório.</p>
-        </div>
-      )}
-
-      {!report && !loading && !error && (
-        <div
-          className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-          <p>Por favor, carregue um relatório SAST para começar.</p>
+          <p>No vulnerabilities found in this report.</p>
         </div>
       )}
     </>
