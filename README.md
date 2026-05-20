@@ -16,7 +16,7 @@ This application provides a dashboard to visualize SAST (Static Application Secu
 
 ### Prerequisites
 
-*   Node.js (v18 or higher recommended)
+*   Node.js (v22 or higher recommended)
 *   pnpm (v10.9.0 or higher recommended)
 *   GitLab project with SAST configured (generating `gl-sast-report.json` artifacts)
 *   A Discord server and channel for notifications (optional)
@@ -58,24 +58,30 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 
 1.  **Start the development server:**
     ```bash
-    npm run dev
-    # or
-    yarn dev
+    pnpm run dev
     ```
     The application will be accessible at `http://localhost:3000` (or the port specified in `NEXT_PUBLIC_BASE_URL`).
 
 2.  **Build for production:**
     ```bash
-    npm run build
-    # or
-    yarn build
+    pnpm run build
     ```
 3.  **Start in production mode:**
     ```bash
-    npm run start
-    # or
-    yarn start
+    pnpm run start
     ```
+
+## Screenshots
+
+Here are some screenshots of the application in action:
+
+### Dashboard Overview
+
+![Dashboard Overview](screenshots/dashboard.png)
+
+### Vulnerability Details Modal
+
+![Vulnerability Details Modal](screenshots/modal.png)
 
 ## GitLab Webhook Documentation
 
@@ -89,7 +95,7 @@ This application exposes an API endpoint to receive SAST reports directly from G
 ### Request Headers
 
 *   `Content-Type`: `application/json`
-*   `X-Gitlab-Token`: (Optional, but **highly recommended**) A secret token for authentication. This should match the `GITLAB_WEBHOOK_SECRET` environment variable configured in your Next.js application.
+*   `X-Gitlab-Token`: A secret token for authentication. This should match the `GITLAB_WEBHOOK_SECRET` environment variable configured in your Next.js application.
 
 ### Request Body (JSON)
 
@@ -223,7 +229,7 @@ You must configure the following CI/CD variables in your GitLab project (`Settin
 
 To test the webhook locally or manually:
 
-1.  Ensure your Next.js development server is running (`npm run dev`).
+1.  Ensure your Next.js development server is running (`pnpm run dev`).
 2.  Use a tool like Bruno or Postman to send a `POST` request to `http://localhost:3000/api/gitlab-webhook`.
 3.  Set the `Content-Type` header to `application/json`.
 4.  If `GITLAB_WEBHOOK_SECRET` is configured, add an `X-Gitlab-Token` header with your secret.
