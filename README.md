@@ -1,36 +1,234 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SAST Vulnerability Dashboard
+
+This application provides a dashboard to visualize SAST (Static Application Security Testing) reports, primarily from GitLab. It allows for manual JSON file uploads and also integrates with GitLab CI/CD via webhooks to automatically process and display SAST reports for specific repositories.
+
+## Features
+
+*   **Manual Upload:** Upload SAST report JSON files directly from your browser.
+*   **GitLab Webhook Integration:** Automatically receive and process SAST reports from GitLab CI/CD pipelines.
+*   **Unique Report Pages:** Each received report is stored and accessible via a unique URL.
+*   **Vulnerability Overview:** Displays severity counters (Critical, High, Medium, Low, Info) for quick insights.
+*   **Detailed Vulnerability Table:** Provides a comprehensive list of all vulnerabilities with severity, name, file, line, and CWE/OWASP identifiers.
+*   **Discord Notifications:** Sends a summary of new SAST reports to a configured Discord channel.
+*   **Non-relational Database:** Uses LowDB (file-based JSON database) for server-side storage of reports.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+*   Node.js (v18 or higher recommended)
+*   pnpm (v10.9.0 or higher recommended)
+*   GitLab project with SAST configured (generating `gl-sast-report.json` artifacts)
+*   A Discord server and channel for notifications (optional)
+
+### Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/viniroveran/SAST-Dashboard-for-Gitlab.git sast-vulnerability-dashboard
+    cd sast-vulnerability-dashboard
+    ```
+2.  **Install dependencies:**
+    ```bash
+    pnpm install
+    ```
+3.  **Create environment variables:**
+    Create a `.env.local` file in the root of your project.
+
+### Environment Variables
+
+The application uses environment variables for configuration. Create a `.env.local` file in the root of your project and populate it with the following:
+
+```dotenv
+# Base URL of your Next.js application (e.g., http://localhost:3000 or https://your-domain.com)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Secret token for authenticating GitLab webhooks.
+# This should match the token configured in your GitLab project's webhook settings.
+# Keep this value secure and use a strong, random string.
+GITLAB_WEBHOOK_SECRET=your_secure_gitlab_webhook_secret_here
+
+# Discord webhook URL for sending notifications.
+# Obtain this from your Discord server's integration settings.
+# If not set, Discord notifications will be skipped.
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Running the Application
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  **Start the development server:**
+    ```bash
+    npm run dev
+    # or
+    yarn dev
+    ```
+    The application will be accessible at `http://localhost:3000` (or the port specified in `NEXT_PUBLIC_BASE_URL`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2.  **Build for production:**
+    ```bash
+    npm run build
+    # or
+    yarn build
+    ```
+3.  **Start in production mode:**
+    ```bash
+    npm run start
+    # or
+    yarn start
+    ```
 
-## Learn More
+## GitLab Webhook Documentation
 
-To learn more about Next.js, take a look at the following resources:
+This application exposes an API endpoint to receive SAST reports directly from GitLab CI/CD pipelines.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Endpoint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+*   **URL:** `/api/gitlab-webhook`
+*   **Method:** `POST`
 
-## Deploy on Vercel
+### Request Headers
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+*   `Content-Type`: `application/json`
+*   `X-Gitlab-Token`: (Optional, but **highly recommended**) A secret token for authentication. This should match the `GITLAB_WEBHOOK_SECRET` environment variable configured in your Next.js application.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Request Body (JSON)
+
+The webhook expects a JSON payload with the following structure:
+
+```json
+{
+  "repoName": "your-repository-name",
+  "sastReport": {
+    // Full content of your gl-sast-report.json file goes here
+    "version": "15.0.0",
+    "vulnerabilities": [
+      {
+        "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        "category": "sast",
+        "name": "Hardcoded password",
+        "severity": "High",
+        "location": {
+          "file": "src/main/java/com/example/app/AuthService.java",
+          "start_line": 42
+        },
+        // ... other vulnerability details
+      }
+    ],
+    "scan": {
+      // ... scan details
+    }
+  }
+}
+```
+
+*   `repoName` (string, **required**): The name of the GitLab repository from which the report originated.
+*   `sastReport` (object, **required**): The complete JSON object representing the SAST report, typically the content of the `gl-sast-report.json` file generated by GitLab SAST.
+
+### Response
+
+*   **Success (200 OK):**
+    ```json
+    {
+      "message": "SAST report received and stored successfully.",
+      "reportId": "a_unique_report_identifier",
+      "viewUrl": "https://your-domain.com/reports/a_unique_report_identifier"
+    }
+    ```
+*   **Client Error (400 Bad Request):**
+    ```json
+    {
+      "message": "Missing repoName or sastReport in payload."
+    }
+    ```
+*   **Unauthorized (401 Unauthorized):** (If `X-Gitlab-Token` is enabled and invalid)
+    ```json
+    {
+      "message": "Unauthorized"
+    }
+    ```
+*   **Method Not Allowed (405 Method Not Allowed):**
+    ```json
+    {
+      "message": "Method Not Allowed"
+    }
+    ```
+*   **Server Error (500 Internal Server Error):**
+    ```json
+    {
+      "message": "Internal Server Error"
+    }
+    ```
+
+### Configuring GitLab CI/CD to Send Reports
+
+To automatically send SAST reports to the dashboard, you need to add a job to your `.gitlab-ci.yml` file. This job will run after your SAST job, extract the `gl-sast-report.json` artifact, and send it to your webhook endpoint.
+
+**Example `.gitlab-ci.yml` snippet:**
+
+```yaml
+# .gitlab-ci.yml
+
+stages:
+  - test
+  - report # Ensure 'report' stage runs after 'test' (where SAST usually runs)
+
+include:
+  - template: Security/SAST.gitlab-ci.yml # Includes GitLab's default SAST job
+
+# ... (your other jobs, e.g., 'sast' job from the template) ...
+
+# NEW JOB: Send SAST Report to Dashboard
+send_sast_report:
+  stage: report
+  image: curlimages/curl:latest # A Docker image with curl and jq pre-installed
+  needs:
+    - sast # This job depends on the 'sast' job completing successfully
+  script:
+    - echo "Sending SAST report to dashboard..."
+    # Check if the SAST report file exists
+    - if [ ! -f "gl-sast-report.json" ]; then echo "SAST report file not found!"; exit 1; fi
+
+    # Construct the JSON payload using 'jq'
+    # CI_PROJECT_NAME is a predefined GitLab CI/CD variable for the repository name
+    - PAYLOAD=$(jq -n \
+        --arg repo "$CI_PROJECT_NAME" \
+        --argjson sast_report "$(cat gl-sast-report.json)" \
+        '{repoName: $repo, sastReport: $sast_report}')
+
+    # Send the payload to the Next.js webhook endpoint
+    - curl -X POST \
+           -H "Content-Type: application/json" \
+           -H "X-Gitlab-Token: $GITLAB_WEBHOOK_SECRET" \
+           -d "$PAYLOAD" \
+           "$SAST_DASHBOARD_WEBHOOK_URL"
+    - echo "SAST report sent successfully."
+  variables:
+    # This URL should point to your deployed Next.js application's webhook endpoint
+    SAST_DASHBOARD_WEBHOOK_URL: "https://your-nextjs-app.com/api/gitlab-webhook"
+  rules:
+    # Example: Only run this job on the default branch after a successful SAST scan
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+
+```
+
+**GitLab CI/CD Variables:**
+
+You must configure the following CI/CD variables in your GitLab project (`Settings > CI/CD > Variables`):
+
+*   `SAST_DASHBOARD_WEBHOOK_URL`: The full URL of your deployed Next.js webhook endpoint (e.g., `https://your-domain.com/api/gitlab-webhook`).
+*   `GITLAB_WEBHOOK_SECRET`: The secret token used to authenticate the webhook. This should be marked as "Protected" and "Masked".
+
+## Local Testing with Bruno/Postman
+
+To test the webhook locally or manually:
+
+1.  Ensure your Next.js development server is running (`npm run dev`).
+2.  Use a tool like Bruno or Postman to send a `POST` request to `http://localhost:3000/api/gitlab-webhook`.
+3.  Set the `Content-Type` header to `application/json`.
+4.  If `GITLAB_WEBHOOK_SECRET` is configured, add an `X-Gitlab-Token` header with your secret.
+5.  Use the JSON request body structure described above, replacing `your-repository-name` and the `sastReport` content with your test data.
+
+Upon successful submission, you will receive a `200 OK` response containing the `reportId` and `viewUrl`. You can then navigate to this `viewUrl` in your browser to see the report.
+
+---
