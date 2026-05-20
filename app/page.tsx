@@ -1,42 +1,13 @@
-// app/page.tsx
 'use client';
 
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@heroui/react';
-import Head from 'next/head';
+import Head from 'next/head'; // Head ainda é útil para metadados específicos da página
 import SeverityCounters from './components/SeverityCounters';
 import VulnerabilityTable from './components/VulnerabilityTable';
-import { ThemeSwitcher } from './components/ThemeSwitcher'; // Certifique-se de que este import está correto
+// Remova os imports de Header e Footer daqui
 
-interface Vulnerability {
-  id: string;
-  category: string;
-  name: string;
-  description: string;
-  cve: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Info' | 'Unknown';
-  scanner: {
-    id: string;
-    name: string;
-  };
-  location: {
-    file: string;
-    start_line: number;
-    end_line?: number;
-  };
-  identifiers: Array<{
-    type: string;
-    name: string;
-    value: string;
-    url?: string;
-  }>;
-}
-
-interface SastReport {
-  version: string;
-  vulnerabilities: Vulnerability[];
-  scan: any;
-}
+// ... (interfaces Vulnerability e SastReport)
 
 export default function Home() {
   const [report, setReport] = useState<SastReport | null>(null);
@@ -87,64 +58,55 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8">
+    <> {/* Use um Fragment <> para envolver o conteúdo */}
       <Head>
         <title>SAST Vulnerability Dashboard</title>
         <meta name="description" content="Dashboard para relatórios SAST do GitLab" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="container mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="page-title text-4xl font-bold text-center flex-grow">
-            Relatório de Vulnerabilidades SAST
-          </h1>
-          <ThemeSwitcher /> {/* O ThemeSwitcher deve estar aqui */}
+      <div className="mb-8 flex flex-col items-center">
+        <input
+          id="file-upload"
+          type="file"
+          accept=".json"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+        <Button
+          onPress={() => document.getElementById('file-upload')?.click()}
+          variant="primary"
+          size="lg"
+          isDisabled={loading}
+        >
+          {fileName ? `Arquivo: ${fileName}` : 'Carregar Relatório SAST (JSON)'}
+        </Button>
+        {loading && <p className="mt-4 text-blue-500 dark:text-blue-400">Carregando...</p>}
+        {error && <p className="mt-4 text-red-600 dark:text-red-400">{error}</p>}
+      </div>
+
+      {report && report.vulnerabilities.length > 0 && (
+        <>
+          <SeverityCounters vulnerabilities={report.vulnerabilities} />
+
+          <h2 className="text-3xl font-semibold text-gray-700 dark:text-gray-200 mb-6 mt-10">
+            Detalhes das Vulnerabilidades
+          </h2>
+          <VulnerabilityTable vulnerabilities={report.vulnerabilities} />
+        </>
+      )}
+
+      {report && report.vulnerabilities.length === 0 && (
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
+          <p>Nenhuma vulnerabilidade encontrada neste relatório.</p>
         </div>
+      )}
 
-        <div className="mb-8 flex flex-col items-center">
-          <input
-            id="file-upload"
-            type="file"
-            accept=".json"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button
-            onPress={() => document.getElementById('file-upload')?.click()}
-            variant="primary"
-            size="lg"
-            isDisabled={loading}
-          >
-            {fileName ? `Arquivo: ${fileName}` : 'Carregar Relatório SAST (JSON)'}
-          </Button>
-          {loading && <p className="mt-4 text-blue-500 dark:text-blue-400">Carregando...</p>}
-          {error && <p className="mt-4 text-red-600 dark:text-red-400">{error}</p>}
+      {!report && !loading && !error && (
+        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
+          <p>Por favor, carregue um relatório SAST para começar.</p>
         </div>
-
-        {report && report.vulnerabilities.length > 0 && (
-          <>
-            <SeverityCounters vulnerabilities={report.vulnerabilities} />
-
-            <h2 className="text-3xl font-semibold text-gray-700 dark:text-gray-200 mb-6 mt-10">
-              Detalhes das Vulnerabilidades
-            </h2>
-            <VulnerabilityTable vulnerabilities={report.vulnerabilities} />
-          </>
-        )}
-
-        {report && report.vulnerabilities.length === 0 && (
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-            <p>Nenhuma vulnerabilidade encontrada neste relatório.</p>
-          </div>
-        )}
-
-        {!report && !loading && !error && (
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-            <p>Por favor, carregue um relatório SAST para começar.</p>
-          </div>
-        )}
-      </main>
-    </div>
+      )}
+    </>
   );
 }
