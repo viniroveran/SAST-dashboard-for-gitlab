@@ -22,8 +22,6 @@ export function ThemeSwitcher() {
       defaultSelected={isDark}
       size="lg"
       onChange={(newSelected: boolean) => {
-        // newSelected === true  → modo escuro
-        // newSelected === false → modo claro
         setTheme(newSelected ? 'dark' : 'light');
       }}
     >
