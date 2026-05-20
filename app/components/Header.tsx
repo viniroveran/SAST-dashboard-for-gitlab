@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ThemeSwitcher } from './ThemeSwitcher'; // Certifique-se do caminho correto
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export function Header() {
   return (

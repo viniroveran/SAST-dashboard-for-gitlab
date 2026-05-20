@@ -1,8 +1,5 @@
 import React from 'react';
-
-interface SeverityCountersProps {
-  vulnerabilities: any[];
-}
+import {SeverityCountersProps} from "@/app/types/vulnerability";
 
 const SeverityCounters: React.FC<SeverityCountersProps> = ({ vulnerabilities }) => {
   const severityCounts = vulnerabilities.reduce((acc, vul) => {

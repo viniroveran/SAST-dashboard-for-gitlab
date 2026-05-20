@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, ChangeEvent } from 'react';
-import { Button } from '@heroui/react';
-import Head from 'next/head'; // Head ainda é útil para metadados específicos da página
-import SeverityCounters from './components/SeverityCounters';
-import VulnerabilityTable from './components/VulnerabilityTable';
-// Remova os imports de Header e Footer daqui
-
-// ... (interfaces Vulnerability e SastReport)
+import {useState, ChangeEvent} from 'react';
+import {Button} from '@heroui/react';
+import Head from 'next/head';
+import SeverityCounters from '@/app/components/SeverityCounters';
+import VulnerabilityTable from '@/app/components/VulnerabilityTable';
+import {SastReport} from '@/app/types/vulnerability';
 
 export default function Home() {
   const [report, setReport] = useState<SastReport | null>(null);
@@ -58,11 +56,11 @@ export default function Home() {
   };
 
   return (
-    <> {/* Use um Fragment <> para envolver o conteúdo */}
+    <>
       <Head>
         <title>SAST Vulnerability Dashboard</title>
-        <meta name="description" content="Dashboard para relatórios SAST do GitLab" />
-        <link rel="icon" href="/favicon.ico" />
+        <meta name="description" content="Dashboard para relatórios SAST do GitLab"/>
+        <link rel="icon" href="/favicon.ico"/>
       </Head>
 
       <div className="mb-8 flex flex-col items-center">
@@ -87,23 +85,25 @@ export default function Home() {
 
       {report && report.vulnerabilities.length > 0 && (
         <>
-          <SeverityCounters vulnerabilities={report.vulnerabilities} />
+          <SeverityCounters vulnerabilities={report.vulnerabilities}/>
 
           <h2 className="text-3xl font-semibold text-gray-700 dark:text-gray-200 mb-6 mt-10">
             Detalhes das Vulnerabilidades
           </h2>
-          <VulnerabilityTable vulnerabilities={report.vulnerabilities} />
+          <VulnerabilityTable vulnerabilities={report.vulnerabilities}/>
         </>
       )}
 
       {report && report.vulnerabilities.length === 0 && (
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
+        <div
+          className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
           <p>Nenhuma vulnerabilidade encontrada neste relatório.</p>
         </div>
       )}
 
       {!report && !loading && !error && (
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
+        <div
+          className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
           <p>Por favor, carregue um relatório SAST para começar.</p>
         </div>
       )}
