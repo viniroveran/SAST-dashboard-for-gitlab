@@ -10,7 +10,7 @@ export function Header() {
         <h1 className="text-3xl font-bold text-black">
           SAST Vulnerability Dashboard
         </h1>
-        <ThemeSwitcher />
+        {/*<ThemeSwitcher />*/}
       </div>
     </header>
   );
