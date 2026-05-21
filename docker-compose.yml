@@ -1,16 +1,15 @@
 services:
   sast-dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: sast-dashboard
-    restart: unless-stopped
+    image: node:22.15.0-alpine3.21
+    working_dir: /app
+    command: sh -c "npm install -g pnpm@10.9.0 && pnpm i && pnpm run dev"
+    env_file:
+      - .env.development
+    volumes:
+      - ./:/app
     ports:
       - "3000:3000"
-    volumes:
-      - ./data/db:/app/db
-    env_file:
-      - .env.local
     networks:
       - sast-network
 
