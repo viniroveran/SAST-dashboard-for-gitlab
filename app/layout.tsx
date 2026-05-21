@@ -7,7 +7,7 @@ export const metadata = {
   title: 'SAST Vulnerability Dashboard',
   description: 'Dashboard for GitLab SAST reports',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/dumbledore.ico',
   },
 };
 
