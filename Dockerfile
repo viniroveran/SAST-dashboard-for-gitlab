@@ -39,9 +39,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-# Copy the db.json file if it exists from the build stage (for initial data, if any)
-# Or create an empty directory for LowDB
+# Copy the db directory
 COPY --from=builder /app/db ./db
+
+# This ensures the nextjs user has write permissions to /app and its subdirectories like /app/db
+RUN chown -R nextjs:nextjs /app
 
 # Define the port Next.js will listen on
 ENV PORT 3000
