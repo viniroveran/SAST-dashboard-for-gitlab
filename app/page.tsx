@@ -2,7 +2,6 @@
 
 import {useState, ChangeEvent} from 'react';
 import {Button} from '@heroui/react';
-import Head from 'next/head';
 import SeverityCounters from '@/app/components/SeverityCounters';
 import VulnerabilityTable from '@/app/components/VulnerabilityTable';
 import {SastReport} from '@/app/types/vulnerability';
@@ -57,12 +56,6 @@ export default function Home() {
 
   return (
     <>
-      <Head>
-        <title>SAST Vulnerability Dashboard</title>
-        <meta name="description" content="Dashboard for GitLab SAST reports"/>
-        <link rel="icon" href="/favicon.ico"/>
-      </Head>
-
       <div className="mb-8 flex flex-col items-center">
         <input
           id="file-upload"

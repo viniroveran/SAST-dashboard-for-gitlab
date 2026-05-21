@@ -3,6 +3,14 @@ import { ThemeProviders } from './providers/ThemeProviders';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
+export const metadata = {
+  title: 'SAST Vulnerability Dashboard',
+  description: 'Dashboard for GitLab SAST reports',
+  icons: {
+    icon: '/favicon.ico',
+  },
+};
+
 export default function RootLayout({
                                      children,
                                    }: {
