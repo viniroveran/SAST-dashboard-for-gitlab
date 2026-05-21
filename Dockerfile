@@ -18,6 +18,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+
 # Ensure LowDB can create the db.json file
 # The 'db' directory will be created at the project root inside the container
 RUN mkdir -p db
@@ -43,7 +46,8 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/db ./db
 
 # This ensures the nextjs user has write permissions to /app and its subdirectories like /app/db
-RUN chown -R nextjs:nextjs /app
+RUN chown nextjs:nextjs /app
+RUN chown -R nextjs:nextjs /app/db
 
 # Define the port Next.js will listen on
 ENV PORT 3000
