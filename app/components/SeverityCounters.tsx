@@ -59,7 +59,7 @@ const SeverityCounters: React.FC<SeverityCountersProps> = ({vulnerabilities}) =>
       {fixedSeveritiesOrder.map((severity) => (
         <HeroUICard
           key={severity}
-          className={`p-4 rounded-lg shadow-md flex flex-col items-center justify-center ${getSeverityColor(severity)}`}
+          className={`p-4 shadow-md flex flex-col items-center justify-center ${getSeverityColor(severity)}`}
         >
           {getSeverityIcon(severity)}
           <HeroUICard.Header className="!p-0 !pb-2">

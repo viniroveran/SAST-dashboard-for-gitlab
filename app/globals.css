@@ -1,14 +1,36 @@
+/* globals.css */
 @import "tailwindcss";
-@import "@heroui/styles";
+@import "@heroui/styles"; /* HeroUI defines its variables here */
+
+/* MODIFICATION HERE: Override HeroUI's gray color variables */
+/* Place this AFTER @import "@heroui/styles"; */
+:root, :host {
+    /* Example neutral gray palette using hex values */
+    --color-gray-100: #f5f5f5;
+    --color-gray-200: #e5e5e5;
+    --color-gray-300: #d4d4d4;
+    --color-gray-400: #a3a3a3;
+    --color-gray-500: #737373;
+    --color-gray-600: #525252;
+    --color-gray-700: #404040;
+    --color-gray-800: #262626; /* This will be used for your header/footer gradient */
+    --color-gray-900: #171717; /* This will be used for your header/footer gradient */
+
+    /* Also update your --background and --foreground to use these neutral grays */
+    --background: var(--color-gray-100); /* Light mode background */
+    --foreground: var(--color-gray-900); /* Light mode text */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root, :host {
+        --background: var(--color-gray-900); /* Dark mode background */
+        --foreground: var(--color-gray-100); /* Dark mode text */
+    }
+}
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-    --background: #ffffff;
-    --foreground: #171717;
-}
 
 @theme inline {
     --color-background: var(--background);
@@ -17,21 +39,11 @@
     --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background: #0a0a0a;
-        --foreground: #ededed;
-    }
-}
-
 body {
-    @apply bg-black text-gray-900 dark:text-gray-100;
+    background-color: var(--background);
+    color: var(--foreground);
 }
 
 .page-title {
-    @apply text-gray-800;
-}
-
-html.dark .page-title {
-    @apply text-gray-100;
+    color: var(--foreground);
 }
