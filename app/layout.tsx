@@ -1,11 +1,12 @@
 import './globals.css';
+import { Metadata } from 'next';
 import { ThemeProviders } from './providers/ThemeProviders';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
-export const metadata = {
-  title: 'SAST Vulnerability Dashboard',
-  description: 'Dashboard for GitLab SAST reports',
+export const metadata: Metadata = {
+  title: 'Vulnerabilities Dashboard',
+  description: 'Dashboard for GitLab SAST and Trivy reports',
   icons: {
     icon: '/dumbledore.ico',
   },
@@ -23,7 +24,7 @@ export default function RootLayout({
       <div className="min-h-screen flex flex-col">
         <Header />
 
-        <main className="flex-grow container mx-auto p-8">
+        <main className="grow container mx-auto p-8">
           {children}
         </main>
 

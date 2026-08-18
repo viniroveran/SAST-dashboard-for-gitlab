@@ -18,11 +18,10 @@ export async function POST(req: NextRequest) {
     }
 
     const uniqueId = uuidv4();
-    const creationDate = Date.now();
 
     db.data.reports.push({
       id: uniqueId,
-      timestamp: creationDate,
+      timestamp: new Date().toISOString(),
       repoName: repoName,
       data: sastReport,
     });
