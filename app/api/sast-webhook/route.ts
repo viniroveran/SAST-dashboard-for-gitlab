@@ -79,14 +79,20 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        await fetch(discordWebhookUrl, {
+        const discordResponse = await fetch(discordWebhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(discordMessage),
         });
-        console.log('Discord notification sent successfully.');
+
+        if (discordResponse.ok) {
+          console.log('Discord notification sent successfully.');
+        } else {
+          const errorBody = await discordResponse.text();
+          console.error(`Failed to send Discord notification: ${discordResponse.status} ${discordResponse.statusText} - ${errorBody}`);
+        }
       } catch (discordError) {
         console.error('Failed to send Discord notification:', discordError);
       }

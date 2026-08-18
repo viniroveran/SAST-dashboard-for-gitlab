@@ -42,23 +42,26 @@ send_sast_report:
     # Check if the SAST report file exists
     if [ ! -f "gl-sast-report.json" ]; then echo "SAST report file not found!"; exit 1; fi
 
-    # Construct the JSON payload.
-    # Use --slurpfile (reads the file directly) instead of --argjson "$(cat ...)"
-    # (passes the whole report through argv/exec) — the latter fails with
-    # "Argument list too long" once the report gets large enough.
+    # Construct the JSON payload into a file, not a shell variable — on a large
+    # report, passing it through argv (via `--argjson "$(cat ...)"` into jq, or
+    # via `-d "$PAYLOAD"` into curl) can exceed the OS's exec argument-size
+    # limit ("Argument list too long" / E2BIG). jq reads the report with
+    # --slurpfile and curl sends the payload with -d @file, so the report
+    # content never touches argv on either end.
     # The dashboard's /api/sast-webhook expects sastReport to already be the
     # consolidated { vulnerabilities: [...] } shape, not the raw report file
     # (which also carries `version`/`scan` fields the endpoint ignores).
-    PAYLOAD=$(jq -n \
+    jq -n \
       --arg repo "$CI_PROJECT_NAME" \
       --slurpfile report gl-sast-report.json \
-      '{repoName: $repo, sastReport: {vulnerabilities: $report[0].vulnerabilities}}')
+      '{repoName: $repo, sastReport: {vulnerabilities: $report[0].vulnerabilities}}' \
+      > /tmp/sast_payload.json
 
     # Send the payload to the Next.js endpoint
     curl -X POST \
       -H "Content-Type: application/json" \
       -H "X-Gitlab-Token: $GITLAB_WEBHOOK_SECRET" \
-      -d "$PAYLOAD" \
+      -d @/tmp/sast_payload.json \
       "$SAST_DASHBOARD_WEBHOOK_URL"
     echo "SAST report sent successfully."
   # Define environment variables for this job (optional, but useful for debugging)

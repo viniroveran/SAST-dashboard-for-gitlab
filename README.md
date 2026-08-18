@@ -185,7 +185,7 @@ Responses: `200 OK` — `{ "success": true, "id": "..." }` (no `viewUrl`; view a
 
 ### Configuring GitLab CI/CD to send reports
 
-The TBI `backend` repo's `.gitlab-ci.yml` (`send_reports` job, stage `reporting`) is the reference implementation: it collects `gl-sast-report.json` + `gl-secret-detection-report.json` into one consolidated `sastReport.vulnerabilities` array, and forwards `trivy-dependency-scanning-report.json` / `trivy-container-scanning-report.json` as-is to the other two endpoints, using `jq --slurpfile` (not `--argjson "$(cat ...)"`, which blows past the shell's argument-size limit on larger reports). Required CI/CD variables:
+The TBI `backend` repo's `.gitlab-ci.yml` (`send_reports` job, stage `reporting`) is the reference implementation: it collects `gl-sast-report.json` + `gl-secret-detection-report.json` into one consolidated `sastReport.vulnerabilities` array, and forwards `trivy-dependency-scanning-report.json` / `trivy-container-scanning-report.json` as-is to the other two endpoints. Both `jq` and `curl` read/send each payload via a file (`jq --slurpfile` in, `curl -d @file` out) rather than a shell variable on argv — a large report on either command's argv blows past the OS's exec argument-size limit (`Argument list too long` / E2BIG); it doesn't matter which of the two commands you fix if the other still takes the payload as a plain argument. Required CI/CD variables:
 
 *   `SAST_DASHBOARD_URL` (or equivalent): base URL of this app, e.g. `https://sast-dashboard.dumbledore.dev`.
 *   `GITLAB_WEBHOOK_SECRET`: the shared secret, marked "Protected" and "Masked".
