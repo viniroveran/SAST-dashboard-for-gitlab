@@ -32,32 +32,38 @@ sast:
 # NEW JOB: Send SAST Report to Dashboard
 send_sast_report:
   stage: report # A new stage or an existing one after SAST
-  image: curlimages/curl:latest # A lightweight image with curl
+  image: alpine:latest # Needs jq + curl (see before_script below)
+  before_script:
+    - apk add --no-cache jq curl
   needs:
     - sast # This job depends on the SAST job
-  script:
-    - echo "Sending SAST report to dashboard..."
+  script: |
+    echo "Sending SAST report to dashboard..."
     # Check if the SAST report file exists
-    - if [ ! -f "gl-sast-report.json" ]; then echo "SAST report file not found!"; exit 1; fi
+    if [ ! -f "gl-sast-report.json" ]; then echo "SAST report file not found!"; exit 1; fi
 
-    # Construct the JSON payload
-    # Use CI_PROJECT_NAME for the repository name
-    # Read the content of gl-sast-report.json
-    - PAYLOAD=$(jq -n \
-        --arg repo "$CI_PROJECT_NAME" \
-        --argjson sast_report "$(cat gl-sast-report.json)" \
-        '{repoName: $repo, sastReport: $sast_report}')
+    # Construct the JSON payload.
+    # Use --slurpfile (reads the file directly) instead of --argjson "$(cat ...)"
+    # (passes the whole report through argv/exec) — the latter fails with
+    # "Argument list too long" once the report gets large enough.
+    # The dashboard's /api/sast-webhook expects sastReport to already be the
+    # consolidated { vulnerabilities: [...] } shape, not the raw report file
+    # (which also carries `version`/`scan` fields the endpoint ignores).
+    PAYLOAD=$(jq -n \
+      --arg repo "$CI_PROJECT_NAME" \
+      --slurpfile report gl-sast-report.json \
+      '{repoName: $repo, sastReport: {vulnerabilities: $report[0].vulnerabilities}}')
 
     # Send the payload to the Next.js endpoint
-    - curl -X POST \
+    curl -X POST \
       -H "Content-Type: application/json" \
       -H "X-Gitlab-Token: $GITLAB_WEBHOOK_SECRET" \
       -d "$PAYLOAD" \
       "$SAST_DASHBOARD_WEBHOOK_URL"
-    - echo "SAST report sent successfully."
+    echo "SAST report sent successfully."
   # Define environment variables for this job (optional, but useful for debugging)
   variables:
-    SAST_DASHBOARD_WEBHOOK_URL: "https://your-nextjs-app.com/api/gitlab-webhook" # Replace with the actual URL
+    SAST_DASHBOARD_WEBHOOK_URL: "https://your-nextjs-app.com/api/sast-webhook" # Replace with the actual URL
     # GITLAB_WEBHOOK_SECRET: "your_secret_token_here" # Defined as a CI/CD variable
   # Ensure the job only runs if the SAST job is successful
   rules:

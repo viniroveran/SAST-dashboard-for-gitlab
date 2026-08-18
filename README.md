@@ -1,24 +1,24 @@
-# SAST Vulnerability Dashboard
+# Vulnerabilities Dashboard
 
-This application provides a dashboard to visualize SAST (Static Application Security Testing) reports, primarily from GitLab. It allows for manual JSON file uploads and also integrates with GitLab CI/CD via webhooks to automatically process and display SAST reports for specific repositories.
+A dashboard for visualizing security-scan reports — SAST, secret detection, dependency scanning, and container scanning — primarily fed by GitLab CI/CD. Started as a SAST-only tool (the package/Docker image are still named `sast-dashboard`); it now covers four report kinds via dedicated webhooks, plus a manual JSON upload for ad-hoc SAST reports.
 
 ## Features
 
-*   **Manual Upload:** Upload SAST report JSON files directly from your browser.
-*   **GitLab Webhook Integration:** Automatically receive and process SAST reports from GitLab CI/CD pipelines.
+*   **Manual Upload:** Upload a SAST report JSON file directly from your browser (scratch viewer only — not persisted).
+*   **GitLab Webhook Integration:** Receives SAST/secret-detection, dependency-scan (Trivy filesystem), and container-scan (Trivy image) reports from GitLab CI/CD pipelines.
 *   **Unique Report Pages:** Each received report is stored and accessible via a unique URL.
 *   **Vulnerability Overview:** Displays severity counters (Critical, High, Medium, Low, Info) for quick insights.
-*   **Detailed Vulnerability Table:** Provides a comprehensive list of all vulnerabilities with severity, name, file, line, and CWE/OWASP identifiers.
+*   **Detailed Vulnerability / Scan Tables:** Comprehensive per-report-type tables (SAST vulnerabilities with severity/name/file/line/CWE/OWASP identifiers; dependency and container findings from Trivy).
 *   **Discord Notifications:** Sends a summary of new SAST reports to a configured Discord channel.
-*   **Non-relational Database:** Uses LowDB (file-based JSON database) for server-side storage of reports.
+*   **Non-relational Database:** Uses LowDB (file-based JSON database, `db.json`) for server-side storage of reports — no external database required.
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Node.js (v22 or higher recommended)
-*   pnpm (v10.9.0 or higher recommended)
-*   GitLab project with SAST configured (generating `gl-sast-report.json` artifacts)
+*   Node.js (v22+; the Docker images use Node 26)
+*   pnpm (v11+ recommended; Docker images pin `pnpm@11.1.3` via corepack)
+*   A GitLab project with SAST / Secret Detection / dependency / container scanning configured
 *   A Discord server and channel for notifications (optional)
 
 ### Installation
@@ -43,14 +43,12 @@ The application uses environment variables for configuration. Create a `.env.loc
 # Base URL of your Next.js application (e.g., http://localhost:3000 or https://your-domain.com)
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
-# Secret token for authenticating GitLab webhooks.
-# This should match the token configured in your GitLab project's webhook settings.
-# Keep this value secure and use a strong, random string.
+# Secret token for authenticating GitLab webhooks. Checked against the
+# X-Gitlab-Token header on every /api/*-webhook route.
 GITLAB_WEBHOOK_SECRET=your_secure_gitlab_webhook_secret_here
 
-# Discord webhook URL for sending notifications.
-# Obtain this from your Discord server's integration settings.
-# If not set, Discord notifications will be skipped.
+# Discord webhook URL for SAST report notifications.
+# If not set, Discord notifications are skipped (SAST endpoint only).
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 ```
 
@@ -58,18 +56,53 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 
 1.  **Start the development server:**
     ```bash
-    pnpm run dev
+    pnpm dev
     ```
     The application will be accessible at `http://localhost:3000` (or the port specified in `NEXT_PUBLIC_BASE_URL`).
 
 2.  **Build for production:**
     ```bash
-    pnpm run build
+    pnpm build
     ```
 3.  **Start in production mode:**
     ```bash
-    pnpm run start
+    pnpm start
     ```
+4.  **Lint:**
+    ```bash
+    pnpm lint
+    ```
+
+## Docker
+
+### Local development
+
+`docker compose up` builds from `Dockerfile.dev` and runs `pnpm i && pnpm run dev` with the repo bind-mounted, so edits hot-reload without rebuilding the image. Requires `.env.development` (same variables as above).
+
+### Production image
+
+`Dockerfile` is a multi-stage pnpm build producing a standalone runtime image. It bakes `db.json` under `/app/db` — the container is **stateful**, so a redeploy without a persistent volume mounted at `/app/db` loses stored reports.
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_BASE_URL=https://your-domain.com \
+  -t viniroveran/sast-dashboard:latest \
+  .
+
+docker run -p 3000:3000 \
+  -e GITLAB_WEBHOOK_SECRET=your_secure_gitlab_webhook_secret_here \
+  -e NEXT_PUBLIC_BASE_URL=https://your-domain.com \
+  -v sast-dashboard-db:/app/db \
+  viniroveran/sast-dashboard:latest
+```
+
+### Publishing to Docker Hub
+
+```bash
+docker login
+docker build -t viniroveran/sast-dashboard:latest .
+docker push viniroveran/sast-dashboard:latest
+```
 
 ## Screenshots
 
@@ -85,28 +118,21 @@ Here are some screenshots of the application in action:
 
 ## GitLab Webhook Documentation
 
-This application exposes an API endpoint to receive SAST reports directly from GitLab CI/CD pipelines.
+All webhook routes are `POST`-only and require:
 
-### Endpoint
+*   `Content-Type: application/json`
+*   `X-Gitlab-Token`: must match the `GITLAB_WEBHOOK_SECRET` environment variable — a mismatch (or missing header) returns `401 Unauthorized`.
 
-*   **URL:** `/api/gitlab-webhook`
-*   **Method:** `POST`
+### `POST /api/sast-webhook` — SAST + Secret Detection
 
-### Request Headers
+Consolidated SAST and/or secret-detection findings, keyed by repo. `sastReport` is expected to already be the merged `{ vulnerabilities: [...] }` shape — **not** the raw `gl-sast-report.json` file — since one report typically combines both `gl-sast-report.json` and `gl-secret-detection-report.json`.
 
-*   `Content-Type`: `application/json`
-*   `X-Gitlab-Token`: A secret token for authentication. This should match the `GITLAB_WEBHOOK_SECRET` environment variable configured in your Next.js application.
-
-### Request Body (JSON)
-
-The webhook expects a JSON payload with the following structure:
+Request body:
 
 ```json
 {
   "repoName": "your-repository-name",
   "sastReport": {
-    // Full content of your gl-sast-report.json file goes here
-    "version": "15.0.0",
     "vulnerabilities": [
       {
         "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
@@ -116,125 +142,66 @@ The webhook expects a JSON payload with the following structure:
         "location": {
           "file": "src/main/java/com/example/app/AuthService.java",
           "start_line": 42
-        },
-        // ... other vulnerability details
+        }
       }
-    ],
-    "scan": {
-      // ... scan details
-    }
+    ]
   }
 }
 ```
 
-*   `repoName` (string, **required**): The name of the GitLab repository from which the report originated.
-*   `sastReport` (object, **required**): The complete JSON object representing the SAST report, typically the content of the `gl-sast-report.json` file generated by GitLab SAST.
+Responses:
 
-### Response
+*   `200 OK` — `{ "message": "SAST report received and stored successfully.", "reportId": "...", "viewUrl": "https://your-domain.com/reports/<id>" }`
+*   `400 Bad Request` — `{ "message": "Missing repoName or sastReport in payload." }`
+*   `500 Internal Server Error` — `{ "message": "Internal Server Error" }`
 
-*   **Success (200 OK):**
-    ```json
-    {
-      "message": "SAST report received and stored successfully.",
-      "reportId": "a_unique_report_identifier",
-      "viewUrl": "https://your-domain.com/reports/a_unique_report_identifier"
-    }
-    ```
-*   **Client Error (400 Bad Request):**
-    ```json
-    {
-      "message": "Missing repoName or sastReport in payload."
-    }
-    ```
-*   **Unauthorized (401 Unauthorized):** (If `X-Gitlab-Token` is enabled and invalid)
-    ```json
-    {
-      "message": "Unauthorized"
-    }
-    ```
-*   **Method Not Allowed (405 Method Not Allowed):**
-    ```json
-    {
-      "message": "Method Not Allowed"
-    }
-    ```
-*   **Server Error (500 Internal Server Error):**
-    ```json
-    {
-      "message": "Internal Server Error"
-    }
-    ```
+If `DISCORD_WEBHOOK_URL` is set, a summary embed is also posted to Discord for this endpoint only.
 
-### Configuring GitLab CI/CD to Send Reports
+### `POST /api/dependency-webhook` — Dependency Scanning (Trivy filesystem)
 
-To automatically send SAST reports to the dashboard, you need to add a job to your `.gitlab-ci.yml` file. This job will run after your SAST job, extract the `gl-sast-report.json` artifact, and send it to your webhook endpoint.
+`trivyReport` is the raw output of `trivy fs --format json`.
 
-**Example `.gitlab-ci.yml` snippet:**
-
-```yaml
-# .gitlab-ci.yml
-
-stages:
-  - test
-  - report # Ensure 'report' stage runs after 'test' (where SAST usually runs)
-
-include:
-  - template: Security/SAST.gitlab-ci.yml # Includes GitLab's default SAST job
-
-# ... (your other jobs, e.g., 'sast' job from the template) ...
-
-# NEW JOB: Send SAST Report to Dashboard
-send_sast_report:
-  stage: report
-  image: curlimages/curl:latest # A Docker image with curl and jq pre-installed
-  needs:
-    - sast # This job depends on the 'sast' job completing successfully
-  script:
-    - echo "Sending SAST report to dashboard..."
-    # Check if the SAST report file exists
-    - if [ ! -f "gl-sast-report.json" ]; then echo "SAST report file not found!"; exit 1; fi
-
-    # Construct the JSON payload using 'jq'
-    # CI_PROJECT_NAME is a predefined GitLab CI/CD variable for the repository name
-    - PAYLOAD=$(jq -n \
-        --arg repo "$CI_PROJECT_NAME" \
-        --argjson sast_report "$(cat gl-sast-report.json)" \
-        '{repoName: $repo, sastReport: $sast_report}')
-
-    # Send the payload to the Next.js webhook endpoint
-    - curl -X POST \
-           -H "Content-Type: application/json" \
-           -H "X-Gitlab-Token: $GITLAB_WEBHOOK_SECRET" \
-           -d "$PAYLOAD" \
-           "$SAST_DASHBOARD_WEBHOOK_URL"
-    - echo "SAST report sent successfully."
-  variables:
-    # This URL should point to your deployed Next.js application's webhook endpoint
-    SAST_DASHBOARD_WEBHOOK_URL: "https://your-nextjs-app.com/api/gitlab-webhook"
-  rules:
-    # Example: Only run this job on the default branch after a successful SAST scan
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-
+```json
+{
+  "repoName": "your-repository-name",
+  "trivyReport": { "...": "full trivy fs --format json output" }
+}
 ```
 
-**GitLab CI/CD Variables:**
+Responses: `201 Created` — `{ "success": true, "id": "...", "viewUrl": "https://your-domain.com/dependency-scan/<id>" }`; `422 Unprocessable Entity` if `repoName`/`trivyReport` is missing; `500` on internal error.
 
-You must configure the following CI/CD variables in your GitLab project (`Settings > CI/CD > Variables`):
+### `POST /api/container-scan-webhook` — Container Scanning (Trivy image)
 
-*   `SAST_DASHBOARD_WEBHOOK_URL`: The full URL of your deployed Next.js webhook endpoint (e.g., `https://your-domain.com/api/gitlab-webhook`).
-*   `GITLAB_WEBHOOK_SECRET`: The secret token used to authenticate the webhook. This should be marked as "Protected" and "Masked".
+`containerScanReport` is the raw output of `trivy image --format json`.
+
+```json
+{
+  "repoName": "your-repository-name",
+  "containerScanReport": { "...": "full trivy image --format json output" }
+}
+```
+
+Responses: `200 OK` — `{ "success": true, "id": "..." }` (no `viewUrl`; view at `/container-scan/<id>`); `400 Bad Request` if `repoName`/`containerScanReport` is missing; `500` on internal error.
+
+### Configuring GitLab CI/CD to send reports
+
+The TBI `backend` repo's `.gitlab-ci.yml` (`send_reports` job, stage `reporting`) is the reference implementation: it collects `gl-sast-report.json` + `gl-secret-detection-report.json` into one consolidated `sastReport.vulnerabilities` array, and forwards `trivy-dependency-scanning-report.json` / `trivy-container-scanning-report.json` as-is to the other two endpoints, using `jq --slurpfile` (not `--argjson "$(cat ...)"`, which blows past the shell's argument-size limit on larger reports). Required CI/CD variables:
+
+*   `SAST_DASHBOARD_URL` (or equivalent): base URL of this app, e.g. `https://sast-dashboard.dumbledore.dev`.
+*   `GITLAB_WEBHOOK_SECRET`: the shared secret, marked "Protected" and "Masked".
+
+For any other project, mirror that job's `jq`/`curl` calls against the payload shapes documented above, pointed at `$SAST_DASHBOARD_URL/api/sast-webhook`, `/api/dependency-webhook`, and `/api/container-scan-webhook` respectively — the route paths and payload field names must match exactly, since there's no schema validation layer between them.
 
 ## Local Testing with Bruno/Postman
 
-To test the webhook locally or manually:
+To test a webhook locally or manually:
 
-1.  Ensure your Next.js development server is running (`pnpm run dev`).
-2.  Use a tool like Bruno or Postman to send a `POST` request to `http://localhost:3000/api/gitlab-webhook`.
+1.  Ensure your Next.js development server is running (`pnpm dev`).
+2.  Send a `POST` request to `http://localhost:3000/api/sast-webhook` (or `/api/dependency-webhook`, `/api/container-scan-webhook`).
 3.  Set the `Content-Type` header to `application/json`.
 4.  If `GITLAB_WEBHOOK_SECRET` is configured, add an `X-Gitlab-Token` header with your secret.
-5.  Use the JSON request body structure described above, replacing `your-repository-name` and the `sastReport` content with your test data.
+5.  Use the JSON request body structure for that endpoint, as documented above.
 
-Upon successful submission, you will receive a `200 OK` response containing the `reportId` and `viewUrl`. You can then navigate to this `viewUrl` in your browser to see the report.
+Upon successful submission, you'll receive the response documented above for that endpoint; if it includes a `viewUrl`, navigate there to see the report.
 
 ---
