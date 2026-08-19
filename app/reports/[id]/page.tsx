@@ -5,10 +5,6 @@ import VulnerabilityTable from '@/app/components/VulnerabilityTable';
 import { SastReport } from '@/app/types/vulnerability';
 import { format } from 'date-fns';
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 interface ReportPageProps {
   params: { id: string };
 }
