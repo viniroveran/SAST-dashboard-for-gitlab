@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Next.js 16 (App Router, TypeScript) dashboard that ingests security-scan reports from the TBI `backend` repo's GitLab CI pipeline (`backend/.gitlab-ci.yml`, `send_reports` job) and renders them for review. Covers four report kinds: SAST + secret detection (consolidated), Trivy dependency (filesystem) scanning, and Trivy container (image) scanning. Storage is a flat JSON file via `lowdb` (`db.json`), no external database.
+Next.js 16 (App Router, TypeScript) dashboard that ingests security-scan reports from the TBI `backend` repo's GitLab CI pipeline (`backend/.gitlab-ci.yml`, `send_reports` job) and renders them for review. Covers four report kinds: SAST, secret detection, Trivy dependency (filesystem) scanning and Trivy container (image) scanning. Storage is plain files (`app/lib/store.ts`), no database: one JSON file per report under `$DATA_DIR/<kind>/<id>.json` plus an append-only `$DATA_DIR/<kind>/index.jsonl` (id, repo, timestamp, severity counts) that list pages read. `DATA_DIR` defaults to `./data`; the production image sets `/app/data`, where the compose volume is mounted.
+
+It used to be a single lowdb `db.json` read and rewritten whole on every request; at ~80 MB that ran Node out of heap on each dependency-scan webhook (502s and a crash loop, Nov 2026). Never go back to loading every report into memory. `scripts/migrate-db-json.mjs <db.json> <data dir>` moves an old `db.json` into the store (ids kept, re-runnable).
 
 ## Commands
 
@@ -16,7 +18,7 @@ pnpm start    # next start (production)
 pnpm lint     # eslint
 ```
 
-`docker compose up` builds from `Dockerfile.dev` and runs `pnpm i && pnpm run dev` with the repo bind-mounted (`docker-compose.yml`). The production image (`Dockerfile`) is a multi-stage pnpm build; it bakes `db.json` under `/app/db` in the final image, owned by a non-root `nextjs` user — the container is stateful, so redeploying without a persistent volume for `/app/db` drops stored reports.
+`docker compose up` builds from `Dockerfile.dev` and runs `pnpm i && pnpm run dev` with the repo bind-mounted (`docker-compose.yml`). The production image (`Dockerfile`) is a multi-stage pnpm build running as a non-root `nextjs` user (uid 1001); reports live in `/app/data`, which must be a persistent volume writable by uid 1001 (redeploying without it drops stored reports).
 
 ## Environment variables
 
@@ -28,15 +30,16 @@ Typed in `app/types/env.d.ts`; set via `.env.development` locally.
 
 ## Webhook routes — payload contracts
 
-Three routes under `app/api/*/route.ts`, all POST-only, all gated by the same `X-Gitlab-Token` check, all backed by `lowdb` collections in `app/lib/db.ts` (`reports`, `trivyReports`, `containerScanReports`):
+Four routes under `app/api/*/route.ts`, all POST-only, all built by `reportWebhook()` (`app/lib/webhook.ts`: `X-Gitlab-Token` check, payload field, `saveReport`, Discord embed), answering 201 with `{ reportId, viewUrl }`:
 
-- **`POST /api/sast-webhook`** — expects `{ repoName: string, sastReport: { vulnerabilities: Vulnerability[] } }`. Stores into `db.data.reports`, keyed by a fresh UUID; viewable at `/reports/[id]`. This is where GitLab CI's raw `gl-sast-report.json` and `gl-secret-detection-report.json` get merged into one `vulnerabilities` array by the CI job before sending — the route itself only expects the already-consolidated shape.
-- **`POST /api/dependency-webhook`** — expects `{ repoName: string, trivyReport: TrivyReport }` (raw `trivy fs --format json` output). Stores into `db.data.trivyReports`; viewable at `/dependency-scan/[id]` (no list/index page yet — reports are only reachable by direct link).
-- **`POST /api/container-scan-webhook`** — expects `{ repoName: string, containerScanReport: ContainerScanReport }` (raw `trivy image --format json` output). Stores into `db.data.containerScanReports`; viewable at `/container-scan/[id]`, with `/container-scan` as the list page.
+- **`POST /api/sast-webhook`** — `{ repoName, sastReport: { vulnerabilities } }` (GitLab's `gl-sast-report.json`). Kind `sast`, viewed at `/reports/[id]`.
+- **`POST /api/secret-detection-webhook`** — `{ repoName, secretDetectionReport: { vulnerabilities } }` (`gl-secret-detection-report.json`, same shape as SAST). Kind `secret`, viewed at `/secret-detection/[id]`.
+- **`POST /api/dependency-webhook`** — `{ repoName, trivyReport }` (raw `trivy fs --format json`). Kind `dependency`, viewed at `/dependency-scan/[id]` (no list page yet).
+- **`POST /api/container-scan-webhook`** — `{ repoName, containerScanReport }` (raw `trivy image --format json`). Kind `container`, viewed at `/container-scan/[id]`, listed at `/container-scan`.
 
-**Keep these route paths and payload field names in sync with `backend/.gitlab-ci.yml`'s `send_reports` job** — that job's `jq` calls build the exact payload shape each route destructures, and there's no schema validation layer between them; a mismatched field name fails with a 400 (or a routing mismatch on a renamed path fails with a 404), not a type error.
+**Keep these route paths and payload field names in sync with the TBI `backend`/`frontend` `.gitlab-ci.yml` `send_reports` jobs** — their `jq` calls build the exact payload each route reads; a mismatched field fails with a 400, a renamed path with a 404. The reverse proxy (`reverse-proxy-ovh`, `nginx/configs/sast.conf`) must allow bodies of several MB (`client_max_body_size`): a Trivy report is ~1 MB and nginx's default limit is 1 MB (413).
 
-The home page (`/`, `app/page.tsx`) also accepts a manually-uploaded SAST JSON file client-side, independent of the webhook/storage path — it's a scratch viewer, not persisted to `db.json`.
+The home page (`/`, `app/page.tsx`) also accepts a manually-uploaded SAST JSON file client-side, independent of the webhook/storage path — it's a scratch viewer, not persisted.
 
 ## Deploys and the `send_reports` job
 

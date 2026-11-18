@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
-import db, { initializeDb } from '@/app/lib/db';
+import { listReports } from '@/app/lib/store';
+
+// Read on every request: prerendered at build time it would freeze the build's (empty) data dir.
+export const dynamic = 'force-dynamic';
 
 export default async function ContainerScansPage() {
-  await initializeDb();
-  await db.read();
-
-  const reports = [...(db.data?.containerScanReports ?? [])]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  // The index only (newest first): no report file is read to build the list.
+  const reports = await listReports('container');
 
   return (
     <>
@@ -33,16 +33,14 @@ export default async function ContainerScansPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {reports.map((report) => {
-              const totalVulns = report.data.Results.reduce(
-                (sum, r) => sum + (r.Vulnerabilities?.length ?? 0), 0
-              );
+              const totalVulns = report.summary.total;
               return (
                 <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
                     {report.repoName}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300 font-mono text-xs">
-                    {report.data.ArtifactName}
+                    {report.summary.artifactName ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
                     {format(new Date(report.timestamp), 'yyyy-MM-dd HH:mm:ss')}
@@ -58,7 +56,7 @@ export default async function ContainerScansPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      href={`/container-scans/${report.id}`}
+                      href={`/container-scan/${report.id}`}
                       className="text-blue-500 hover:underline text-sm"
                     >
                       View

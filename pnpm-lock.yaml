@@ -46,9 +46,6 @@ importers:
       framer-motion:
         specifier: ^12.39.0
         version: 12.39.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      lowdb:
-        specifier: ^7.0.1
-        version: 7.0.1
       next:
         specifier: 16.3.1
         version: 16.3.1(@types/node@20.19.41)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -3237,10 +3234,6 @@ packages:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
 
-  lowdb@7.0.1:
-    resolution: {integrity: sha512-neJAj8GwF0e8EpycYIDFqEPcx9Qz4GUho20jWFR7YiFeXzF1YMLdxB36PypcTSPMA+4+LvgyMacYhlr18Zlymw==}
-    engines: {node: '>=18'}
-
   lowlight@1.20.0:
     resolution: {integrity: sha512-8Ktj+prEb1RoCPkEOrPMYUN/nCggB7qAWe3a7OpMjWQkh3l2RD5wKRQ+o8Q8YuI9RG/xs95waaI/E6ym/7NsTw==}
 
@@ -3751,10 +3744,6 @@ packages:
 
   stable-hash@0.0.5:
     resolution: {integrity: sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA==}
-
-  steno@4.0.2:
-    resolution: {integrity: sha512-yhPIQXjrlt1xv7dyPQg2P17URmXbuM5pdGkpiMB3RenprfiBlvK415Lctfe0eshk90oA7/tNq7WEiMK8RSP39A==}
-    engines: {node: '>=18'}
 
   stop-iteration-iterator@1.1.0:
     resolution: {integrity: sha512-eLoXW/DHyl62zxY4SCaIgnRhuMr6ri4juEYARS8E6sCEqzKpOiE521Ucofdx+KnDZl5xmvGYaaKCk5FEOxJCoQ==}
@@ -8184,10 +8173,6 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
 
-  lowdb@7.0.1:
-    dependencies:
-      steno: 4.0.2
-
   lowlight@1.20.0:
     dependencies:
       fault: 1.0.4
@@ -9033,8 +9018,6 @@ snapshots:
   space-separated-tokens@2.0.2: {}
 
   stable-hash@0.0.5: {}
-
-  steno@4.0.2: {}
 
   stop-iteration-iterator@1.1.0:
     dependencies:

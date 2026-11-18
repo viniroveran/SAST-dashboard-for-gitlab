@@ -1,22 +1,20 @@
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
-import db, { initializeDb } from '@/app/lib/db';
-import { ContainerVulnerability } from '@/app/types/containerScan';
+import { getReport } from '@/app/lib/store';
+import { ContainerScanReport, ContainerVulnerability } from '@/app/types/containerScan';
 import SeverityCounters from '@/app/components/SeverityCounters';
 import ContainerVulnerabilityTable from '@/app/components/ContainerVulnerabilityTable';
 
-export default async function ContainerScanReportPage({ params }: { params: { id: string } }) {
-  await initializeDb();
-  await db.read();
-
-  const entry = db.data?.containerScanReports.find((r) => r.id === params.id);
+export default async function ContainerScanReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const entry = await getReport<ContainerScanReport>('container', id);
   if (!entry) notFound();
 
   const report = entry.data;
   const formattedDate = format(new Date(entry.timestamp), 'yyyy-MM-dd HH:mm:ss');
 
   // Flatten all vulnerabilities across all results
-  const allVulnerabilities: ContainerVulnerability[] = report.Results.flatMap(
+  const allVulnerabilities: ContainerVulnerability[] = (report.Results ?? []).flatMap(
     (result) => result.Vulnerabilities ?? []
   );
 

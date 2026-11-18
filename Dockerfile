@@ -21,10 +21,6 @@ COPY . .
 ARG NEXT_PUBLIC_BASE_URL=https://sast-dashboard.dumbledore.dev
 ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 
-# Ensure LowDB can create the db.json file
-# The 'db' directory will be created at the project root inside the container
-RUN mkdir -p db
-
 # Configure build environment for production
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
@@ -42,12 +38,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-# Copy the db directory
-COPY --from=builder /app/db ./db
+COPY --from=builder /app/scripts ./scripts
 
-# This ensures the nextjs user has write permissions to /app and its subdirectories like /app/db
-RUN chown nextjs:nextjs /app
-RUN chown -R nextjs:nextjs /app/db
+# Reports live in /app/data (app/lib/store.ts), the path the production compose mounts its
+# volume at — never in the image layer, which a redeploy discards.
+ENV DATA_DIR=/app/data
+RUN mkdir -p /app/data && chown -R nextjs:nextjs /app/data
 
 # Define the port Next.js will listen on
 ENV PORT 3000

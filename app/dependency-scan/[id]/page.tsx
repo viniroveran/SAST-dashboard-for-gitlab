@@ -1,21 +1,18 @@
 import Head from 'next/head';
-import db, { initializeDb } from '@/app/lib/db';
+import { getReport } from '@/app/lib/store';
 import SeverityCounters from '@/app/components/SeverityCounters';
 import DependencyVulnerabilityTable from '@/app/components/DependencyVulnerabilityTable';
-import { TrivyVulnerability } from '@/app/types/trivy';
+import { TrivyReport, TrivyVulnerability } from '@/app/types/trivy';
 import { format } from 'date-fns';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function DependencyScanPage({ params }: Props) {
   const { id } = await params;
 
-  await initializeDb();
-  await db.read();
-
-  const reportEntry = db.data.trivyReports.find((r) => r.id === id);
+  const reportEntry = await getReport<TrivyReport>('dependency', id);
 
   if (!reportEntry) {
     return (
@@ -31,7 +28,7 @@ export default async function DependencyScanPage({ params }: Props) {
   const report = reportEntry.data;
   const formattedDate = format(new Date(reportEntry.timestamp), 'yyyy-MM-dd HH:mm:ss');
 
-  const allVulnerabilities: TrivyVulnerability[] = report.Results.flatMap(
+  const allVulnerabilities: TrivyVulnerability[] = (report.Results ?? []).flatMap(
     (result) => result.Vulnerabilities ?? [],
   );
 
