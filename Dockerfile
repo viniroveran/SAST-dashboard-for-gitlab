@@ -2,8 +2,10 @@
 
 FROM node:26.2.0-alpine3.23 AS base
 
-# Install pnpm globally and add build dependencies
-RUN npm install -g pnpm@11.1.3 && \
+# Install pnpm globally and add build dependencies (apk upgrade: pick up Alpine security fixes
+# released after the base image was cut)
+RUN apk upgrade --no-cache && \
+    npm install -g pnpm@11.28.13 && \
     apk add --no-cache libc6-compat build-base python3
 
 # 1. Dependency Installation Stage
@@ -26,8 +28,15 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 # 3. Application Execution Stage
-FROM base AS runner
+# Plain Node image, not `base`: no compilers, and npm/pnpm removed since nothing runs them at
+# runtime (their bundled deps are a steady source of scanner findings).
+FROM node:26.2.0-alpine3.23 AS runner
 WORKDIR /app
+
+RUN apk upgrade --no-cache && \
+    apk add --no-cache libc6-compat && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # Define 'nextjs' user for security
 RUN addgroup --system --gid 1001 nextjs
@@ -53,4 +62,4 @@ EXPOSE 3000
 USER nextjs
 
 # Command to start the Next.js application in production
-CMD ["npm", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]

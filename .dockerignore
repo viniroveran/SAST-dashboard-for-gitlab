@@ -1,0 +1,12 @@
+# The image installs dependencies itself (deps stage); never copy host artifacts over them.
+node_modules
+.next
+.git
+.idea
+data
+screenshots
+.env*
+!example.env
+Dockerfile*
+docker-compose.yml
+publish
