@@ -1,47 +1,40 @@
 'use client';
 
+import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
-import { Switch } from '@heroui/react';
-import { Moon, Sun } from '@gravity-ui/icons';
+import { Button } from '@/app/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu';
 
 export function ThemeSwitcher() {
-  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
-  const isDark = theme === 'dark';
-
   return (
-    <Switch
-      defaultSelected={isDark}
-      size="lg"
-      onChange={(newSelected: boolean) => {
-        setTheme(newSelected ? 'dark' : 'light');
-      }}
-    >
-      {({ isSelected }) => (
-        <>
-          <Switch.Control
-            className={isSelected ? "bg-gray-700" : "bg-gray-200"}
-          >
-            <Switch.Thumb>
-              <Switch.Icon>
-                {isSelected ? (
-                  <Moon className="size-3 text-gray-800 opacity-100" />
-                ) : (
-                  <Sun className="size-3 text-gray-800 opacity-100" />
-                )}
-              </Switch.Icon>
-            </Switch.Thumb>
-          </Switch.Control>
-        </>
-      )}
-    </Switch>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Toggle theme">
+          <Sun className="scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+          <Moon className="absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+          <DropdownMenuRadioItem value="light">
+            <Sun /> Light
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">
+            <Moon /> Dark
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">
+            <Monitor /> System
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

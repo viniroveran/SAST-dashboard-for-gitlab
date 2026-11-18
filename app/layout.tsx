@@ -12,26 +12,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-                                     children,
-                                   }: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-    <body className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-    <ThemeProviders>
-      <div className="min-h-screen flex flex-col">
-        <Header />
-
-        <main className="grow container mx-auto p-8">
-          {children}
-        </main>
-
-        <Footer />
-      </div>
-    </ThemeProviders>
-    </body>
+      <body>
+        <ThemeProviders>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6">{children}</main>
+            <Footer />
+          </div>
+        </ThemeProviders>
+      </body>
     </html>
   );
 }

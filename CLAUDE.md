@@ -41,6 +41,20 @@ Four routes under `app/api/*/route.ts`, all POST-only, all built by `reportWebho
 
 The home page (`/`, `app/page.tsx`) also accepts a manually-uploaded SAST JSON file client-side, independent of the webhook/storage path — it's a scratch viewer, not persisted.
 
+## UI
+
+shadcn/ui (new-york, zinc) on Tailwind v4: primitives in `app/components/ui/` (add more with `pnpm dlx shadcn@latest add <name>`; aliases in `components.json`), tokens and the severity palette (`--sev-*`) in `app/globals.css`, dark mode via next-themes' `.dark` class (`@custom-variant dark`). Severity names, order, icons and badge classes live only in `app/lib/severity.ts` (`normalizeSeverity` maps GitLab "Critical" and Trivy "CRITICAL" alike). Report pages render `SastReportExplorer` / `TrivyReportExplorer`: the severity cards toggle a multi-select filter kept in `?severity=critical,high` (`app/hooks/useSeverityFilter.ts`, written with `history.replaceState` so a click doesn't refetch the server-rendered report), plus a text search and Critical→Unknown ordering.
+
 ## Deploys and the `send_reports` job
 
 The GitLab CI `send_reports` job hits `$SAST_DASHBOARD_URL` (currently `https://sast-dashboard.dumbledore.dev` in `backend/.gitlab-ci.yml`) directly — this repo isn't deployed by that pipeline. If a webhook route is renamed or its payload shape changes here, the change is inert in CI until this app is committed *and deployed*; check `git log`/deploy state here before assuming a route rename has taken effect in production.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

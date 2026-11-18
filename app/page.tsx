@@ -1,21 +1,25 @@
 'use client';
 
-import {useState, ChangeEvent} from 'react';
-import {Button} from '@heroui/react';
-import SeverityCounters from '@/app/components/SeverityCounters';
-import VulnerabilityTable from '@/app/components/VulnerabilityTable';
-import {SastReport} from '@/app/types/vulnerability';
+import { ChangeEvent, Suspense, useRef, useState } from 'react';
+import { FileJson, Loader2, ShieldCheck, Upload } from 'lucide-react';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import EmptyState from '@/app/components/EmptyState';
+import SastReportExplorer from '@/app/components/SastReportExplorer';
+import { SastReport } from '@/app/types/vulnerability';
 
+// Scratch viewer: parses a gl-sast-report.json client-side, nothing is stored.
 export default function Home() {
   const [report, setReport] = useState<SastReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setError("No file selected.");
+      setError('No file selected.');
       setReport(null);
       setFileName(null);
       return;
@@ -33,12 +37,12 @@ export default function Home() {
         const parsedReport: SastReport = JSON.parse(content);
 
         if (!parsedReport.vulnerabilities || !Array.isArray(parsedReport.vulnerabilities)) {
-          throw new Error("The JSON file does not appear to be a valid SAST vulnerability report.");
+          throw new Error('The JSON file does not appear to be a valid SAST vulnerability report.');
         }
 
         setReport(parsedReport);
-      } catch (parseError: any) {
-        setError(`Error processing file: ${parseError.message}`);
+      } catch (parseError: unknown) {
+        setError(`Error processing file: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
         setReport(null);
       } finally {
         setLoading(false);
@@ -46,7 +50,7 @@ export default function Home() {
     };
 
     reader.onerror = () => {
-      setError("Error reading file.");
+      setError('Error reading file.');
       setLoading(false);
       setReport(null);
     };
@@ -55,40 +59,41 @@ export default function Home() {
   };
 
   return (
-    <>
-      <div className="mb-8 flex flex-col items-center">
-        <input
-          id="file-upload"
-          type="file"
-          accept=".json"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-        <Button
-          onPress={() => document.getElementById('file-upload')?.click()}
-          variant="primary"
-          size="lg"
-          isDisabled={loading}
-        >
-          {fileName ? `File: ${fileName}` : 'Upload SAST Report (JSON)'}
-        </Button>
-        {loading && <p className="mt-4 text-blue-500 dark:text-blue-400">Loading...</p>}
-        {error && <p className="mt-4 text-red-600 dark:text-red-400">{error}</p>}
-      </div>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">SAST report viewer</CardTitle>
+          <CardDescription>
+            Open a GitLab <code className="font-mono">gl-sast-report.json</code> to inspect it locally. Nothing is
+            uploaded or stored.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <input ref={inputRef} type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
+          <Button size="lg" onClick={() => inputRef.current?.click()} disabled={loading}>
+            {loading ? <Loader2 className="animate-spin" /> : <Upload />}
+            {fileName ? 'Choose another file' : 'Upload SAST Report (JSON)'}
+          </Button>
+          {fileName && (
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <FileJson className="size-4" />
+              {fileName}
+            </span>
+          )}
+        </CardContent>
+        {error && <CardContent className="text-sm text-destructive">{error}</CardContent>}
+      </Card>
 
       {report && report.vulnerabilities.length > 0 && (
-        <>
-          <SeverityCounters vulnerabilities={report.vulnerabilities}/>
-          <VulnerabilityTable vulnerabilities={report.vulnerabilities}/>
-        </>
+        // The explorer reads ?severity= from the URL, which needs a Suspense boundary on a static page.
+        <Suspense>
+          <SastReportExplorer vulnerabilities={report.vulnerabilities} />
+        </Suspense>
       )}
 
       {report && report.vulnerabilities.length === 0 && (
-        <div
-          className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-          <p>No vulnerabilities found in this report.</p>
-        </div>
+        <EmptyState icon={ShieldCheck}>No vulnerabilities found in this report.</EmptyState>
       )}
-    </>
+    </div>
   );
 }

@@ -1,9 +1,10 @@
-import Head from 'next/head';
-import { getReport } from '@/app/lib/store';
-import SeverityCounters from '@/app/components/SeverityCounters';
-import DependencyVulnerabilityTable from '@/app/components/DependencyVulnerabilityTable';
-import { TrivyReport, TrivyVulnerability } from '@/app/types/trivy';
 import { format } from 'date-fns';
+import { FileQuestion, GitCommit, ShieldCheck } from 'lucide-react';
+import EmptyState from '@/app/components/EmptyState';
+import ReportHeader from '@/app/components/ReportHeader';
+import TrivyReportExplorer from '@/app/components/TrivyReportExplorer';
+import { getReport } from '@/app/lib/store';
+import { TrivyReport, TrivyVulnerability } from '@/app/types/trivy';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,10 +18,8 @@ export default async function DependencyScanPage({ params }: Props) {
   if (!reportEntry) {
     return (
       <>
-        <Head><title>Report Not Found</title></Head>
-        <div className="p-6 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-lg shadow-md text-center text-xl">
-          <p>Dependency scan report with ID "{id}" not found.</p>
-        </div>
+        <title>Report Not Found</title>
+        <EmptyState icon={FileQuestion}>Dependency scan report with ID &quot;{id}&quot; not found.</EmptyState>
       </>
     );
   }
@@ -32,32 +31,22 @@ export default async function DependencyScanPage({ params }: Props) {
     (result) => result.Vulnerabilities ?? [],
   );
 
-  const normalizedForCounters = allVulnerabilities.map((v) => ({
-    severity: v.Severity.charAt(0).toUpperCase() + v.Severity.slice(1).toLowerCase(),
-  }));
-
   return (
     <>
-      <Head>
-        <title>Dependency Scan: {reportEntry.repoName} - {formattedDate}</title>
-      </Head>
-
-      <h1 className="text-4xl font-bold text-gray-700 dark:text-gray-100 mb-8 text-center">
-        {reportEntry.repoName} - {formattedDate}
-      </h1>
+      <title>{`Dependency Scan: ${reportEntry.repoName} - ${formattedDate}`}</title>
+      <ReportHeader kind="Dependency Scan" repoName={reportEntry.repoName} date={formattedDate}>
+        {report.Metadata?.Commit && (
+          <span className="flex items-center gap-1.5 font-mono text-xs">
+            <GitCommit className="size-4" />
+            {report.Metadata.Commit.slice(0, 8)}
+          </span>
+        )}
+      </ReportHeader>
 
       {allVulnerabilities.length > 0 ? (
-        <>
-          <SeverityCounters vulnerabilities={normalizedForCounters as any} />
-          <h2 className="text-3xl font-semibold text-gray-700 dark:text-gray-200 mb-6 mt-10">
-            Dependency Vulnerabilities
-          </h2>
-          <DependencyVulnerabilityTable vulnerabilities={allVulnerabilities} />
-        </>
+        <TrivyReportExplorer vulnerabilities={allVulnerabilities} variant="dependency" />
       ) : (
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-          <p>No vulnerabilities found in this scan.</p>
-        </div>
+        <EmptyState icon={ShieldCheck}>No vulnerabilities found in this scan.</EmptyState>
       )}
     </>
   );

@@ -1,9 +1,25 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { ChevronRight, Inbox } from 'lucide-react';
+import { Badge } from '@/app/components/ui/badge';
+import { Card } from '@/app/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
+import EmptyState from '@/app/components/EmptyState';
+import SeverityBadge from '@/app/components/SeverityBadge';
 import { listReports } from '@/app/lib/store';
+import { normalizeSeverity, SEVERITIES, type Severity } from '@/app/lib/severity';
 
 // Read on every request: prerendered at build time it would freeze the build's (empty) data dir.
 export const dynamic = 'force-dynamic';
+
+function severityCounts(raw: Record<string, number>) {
+  const counts = new Map<Severity, number>();
+  for (const [name, n] of Object.entries(raw)) {
+    const s = normalizeSeverity(name);
+    counts.set(s, (counts.get(s) ?? 0) + n);
+  }
+  return SEVERITIES.filter((s) => (counts.get(s) ?? 0) > 0).map((s) => [s, counts.get(s)!] as const);
+}
 
 export default async function ContainerScansPage() {
   // The index only (newest first): no report file is read to build the list.
@@ -11,63 +27,68 @@ export default async function ContainerScansPage() {
 
   return (
     <>
-      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-8 text-center">
-        Container Scan Reports
-      </h1>
+      <div className="mb-8 space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">Container Scan Reports</h1>
+        <p className="text-muted-foreground">Trivy image scans received from CI, newest first.</p>
+      </div>
 
       {reports.length === 0 ? (
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300 text-xl">
-          <p>No container scan reports found.</p>
-        </div>
+        <EmptyState icon={Inbox}>No container scan reports found.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg shadow-md">
-          <table className="min-w-full bg-white dark:bg-gray-800 text-sm">
-            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
-            <tr>
-              <th className="px-4 py-3 text-left">Repository</th>
-              <th className="px-4 py-3 text-left">Image</th>
-              <th className="px-4 py-3 text-left">Date</th>
-              <th className="px-4 py-3 text-left">Vulnerabilities</th>
-              <th className="px-4 py-3 text-left"></th>
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {reports.map((report) => {
-              const totalVulns = report.summary.total;
-              return (
-                <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
-                    {report.repoName}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300 font-mono text-xs">
-                    {report.summary.artifactName ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                    {format(new Date(report.timestamp), 'yyyy-MM-dd HH:mm:ss')}
-                  </td>
-                  <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        totalVulns === 0
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {totalVulns} found
-                      </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/container-scan/${report.id}`}
-                      className="text-blue-500 hover:underline text-sm"
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-            </tbody>
-          </table>
-        </div>
+        <Card className="gap-0 overflow-hidden py-0">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent [&>th]:px-4 [&>th]:text-xs [&>th]:text-muted-foreground [&>th]:uppercase">
+                <TableHead>Repository</TableHead>
+                <TableHead>Image</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Vulnerabilities</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reports.map((report) => {
+                const href = `/container-scan/${report.id}`;
+                const bySeverity = severityCounts(report.summary.severities ?? {});
+                return (
+                  <TableRow key={report.id} className="group relative [&>td]:px-4 [&>td]:py-3">
+                    <TableCell className="font-medium">
+                      {/* Stretched link: the whole row is clickable. */}
+                      <Link href={href} className="after:absolute after:inset-0">
+                        {report.repoName}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
+                      {report.summary.artifactName ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {format(new Date(report.timestamp), 'yyyy-MM-dd HH:mm:ss')}
+                    </TableCell>
+                    <TableCell>
+                      {report.summary.total === 0 ? (
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          Clean
+                        </Badge>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {bySeverity.map(([s, n]) => (
+                            <span key={s} className="flex items-center gap-1">
+                              <SeverityBadge severity={s} />
+                              <span className="text-xs tabular-nums text-muted-foreground">{n}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </>
   );

@@ -11,19 +11,19 @@ interface MarkdownRendererProps {
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
   const customComponents: Components = {
     pre: ({ children }) => (
-      <pre className="bg-black text-gray-400 p-4 mt-4 mb-4 rounded-md overflow-x-auto whitespace-pre-wrap">
+      <pre className="bg-muted text-foreground p-4 my-4 rounded-md border overflow-x-auto whitespace-pre-wrap">
         {children}
       </pre>
     ),
     code: ({ children }) => (
-      <code className="font-mono text-sm bg-black text-gray-400 p-1 rounded">
+      <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
         {children}
       </code>
     ),
   };
 
   return (
-    <div className={`prose dark:prose-invert max-w-none ${className || ''}`}>
+    <div className={`prose prose-sm dark:prose-invert max-w-none prose-code:before:content-none prose-code:after:content-none ${className || ''}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={customComponents}
