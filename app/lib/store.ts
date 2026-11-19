@@ -38,12 +38,14 @@ export interface StoredReport<T> {
   data: T;
 }
 
+// turbopackIgnore: these paths are runtime data (the volume), not code. Without it Turbopack
+// can't scope the dynamic path and traces the whole project into the standalone output.
 export function dataDir(): string {
-  return process.env.DATA_DIR || path.join(process.cwd(), 'data');
+  return process.env.DATA_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), 'data');
 }
 
 function kindDir(kind: ReportKind): string {
-  return path.join(dataDir(), kind);
+  return path.join(/*turbopackIgnore: true*/ dataDir(), kind);
 }
 
 /** Writes a file atomically: a reader never sees a half-written report. */

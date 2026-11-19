@@ -4,6 +4,8 @@ node_modules
 .git
 .idea
 data
+# Old lowdb reports file (pre-store.ts), local only.
+db.json
 screenshots
 .env*
 !example.env

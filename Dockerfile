@@ -42,11 +42,11 @@ RUN apk upgrade --no-cache && \
 RUN addgroup --system --gid 1001 nextjs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy essential files from the build stage
+# Standalone output (next.config.ts): server.js plus only the traced runtime files, instead of
+# the whole node_modules (dev deps included, a 605 MB layer). Static assets are not part of it.
+COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/scripts ./scripts
 
 # Reports live in /app/data (app/lib/store.ts), the path the production compose mounts its
@@ -55,11 +55,13 @@ ENV DATA_DIR=/app/data
 RUN mkdir -p /app/data && chown -R nextjs:nextjs /app/data
 
 # Define the port Next.js will listen on
-ENV PORT 3000
+ENV PORT=3000
+# server.js binds to $HOSTNAME, which Docker sets to the container id: listen on all interfaces.
+ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
 
 # Set the user to run the application
 USER nextjs
 
 # Command to start the Next.js application in production
-CMD ["node", "node_modules/next/dist/bin/next", "start"]
+CMD ["node", "server.js"]
