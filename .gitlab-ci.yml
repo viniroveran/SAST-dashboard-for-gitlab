@@ -1,0 +1,101 @@
+# sast-dashboard — lint/typecheck, build the image to Docker Hub, deploy to sv2.
+#
+# The image stays on Docker Hub (viniroveran/sast-dashboard, public): sv2's
+# reverse-proxy/compose/apps.yml pulls it from there without logging in, which is
+# what lets the deploy key below be locked to a single command.
+#
+# Deploy: sv2's ~/.ssh/authorized_keys pins the CI key with
+#   restrict,command="/home/ubuntu/bin/deploy-sast-dashboard"
+# so the key can only run that script (pull + recreate sast-dashboard, health check,
+# nginx -t + SIGHUP); whatever command the job sends is ignored, and it gets no
+# shell or forwarding. The script lives on sv2, not in this repo.
+#
+# Variables (Settings > CI/CD > Variables, protected + masked):
+#   DOCKERHUB_TOKEN  - Docker Hub personal access token (Read & Write) of viniroveran.
+#   SSH_PRIVATE_KEY  - the deploy key, base64 (`base64 -w0 id_ed25519`).
+
+stages:
+  - test
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+variables:
+  IMAGE: viniroveran/sast-dashboard
+  DOCKERHUB_USERNAME: viniroveran
+  PRODUCTION_URL: https://sast-dashboard.dumbledore.dev
+  DEPLOY_HOST: 15.204.246.135
+  DEPLOY_USER: ubuntu
+  # sv2's host key, pinned instead of StrictHostKeyChecking=no.
+  DEPLOY_KNOWN_HOST: "15.204.246.135 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICAkIcLLsTvjh+svtSG2xJAG/3i6pEp15i0LZxQwxQJm"
+  # Keep in sync with the Dockerfile's base stage.
+  PNPM_VERSION: 11.28.13
+
+test:
+  stage: test
+  image: node:26.2.0-alpine3.23
+  variables:
+    npm_config_store_dir: "$CI_PROJECT_DIR/.pnpm-store"
+  cache:
+    key:
+      files:
+        - pnpm-lock.yaml
+    paths:
+      - .pnpm-store
+  before_script:
+    - npm install -g pnpm@$PNPM_VERSION
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm lint
+    - pnpm exec tsc --noEmit
+
+build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs: ["test"]
+  before_script:
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+  script:
+    - >
+      docker build
+      --build-arg NEXT_PUBLIC_BASE_URL=$PRODUCTION_URL
+      -t "$IMAGE:$CI_COMMIT_SHORT_SHA"
+      -t "$IMAGE:latest"
+      .
+    # The commit tag first: a rollback target exists before :latest moves.
+    - docker push "$IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$IMAGE:latest"
+  after_script:
+    - docker logout
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+deploy:
+  stage: deploy
+  image: alpine:3.21.0
+  environment:
+    name: production
+    url: $PRODUCTION_URL
+  needs: ["build"]
+  resource_group: production
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/deploy_key
+    - chmod 0600 ~/.ssh/deploy_key
+    - echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
+  script:
+    # The forced command runs the deploy; nothing needs to be passed.
+    - ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST"
+    # busybox wget has no --tries/--waitretry: retry by hand.
+    - for i in 1 2 3 4 5 6; do wget -q -O /dev/null "$PRODUCTION_URL/" && exit 0; sleep 5; done; echo "$PRODUCTION_URL did not answer" >&2; exit 1
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
