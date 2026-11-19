@@ -1,6 +1,6 @@
 import { purgeExpiredReports } from '@/app/lib/store';
 
-// Reports live REPORT_TTL_SECONDS (default 1 hour, see store.ts). Expired ones are already hidden
+// Reports live REPORT_TTL_SECONDS (default 24 hours, see store.ts). Expired ones are already hidden
 // on read; this sweep deletes their files. Every 5 minutes, plus once at startup, so a restart
 // after downtime catches up right away.
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;

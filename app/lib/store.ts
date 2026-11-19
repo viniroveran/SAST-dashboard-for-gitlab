@@ -14,7 +14,7 @@ import { v4 as uuidv4, validate as isUuid } from 'uuid';
 //
 // DATA_DIR defaults to ./data — /app/data in the production image, the mounted volume.
 //
-// Reports are short-lived: REPORT_TTL_SECONDS after their timestamp (default 1 hour) they stop
+// Reports are short-lived: REPORT_TTL_SECONDS after their timestamp (default 24 hours) they stop
 // being served at once (getReport/listReports), and purgeExpiredReports(), run every few
 // minutes from instrumentation.ts, deletes their files and drops them from the index.
 
@@ -42,9 +42,9 @@ export interface StoredReport<T> {
   data: T;
 }
 
-const DEFAULT_TTL_SECONDS = 60 * 60;
+const DEFAULT_TTL_SECONDS = 24 * 60 * 60;
 
-/** How long a report lives after its timestamp, in ms (REPORT_TTL_SECONDS, default 1 hour). */
+/** How long a report lives after its timestamp, in ms (REPORT_TTL_SECONDS, default 24 hours). */
 export function reportTtlMs(): number {
   const seconds = Number(process.env.REPORT_TTL_SECONDS);
   return (Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_TTL_SECONDS) * 1000;
