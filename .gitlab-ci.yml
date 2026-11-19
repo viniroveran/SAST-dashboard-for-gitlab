@@ -57,7 +57,9 @@ build:
   # drives sv's own daemon (no dind). So the build runs in the host's BuildKit, capped by
   # --cgroup-parent=build.slice as the runner config asks, and the push goes from sv to
   # docker.dumbledore.dev, which sv's /etc/hosts points at its local nginx: Cloudflare in
-  # front of the registry stalls or fails large uploads.
+  # front of the registry stalls or fails large uploads. --provenance=false: the host's BuildKit
+  # otherwise pushes an index (image + attestation) whose image manifest the registry rejects
+  # ("blob unknown to registry").
   image: docker:27
   needs: ["test"]
   before_script:
@@ -66,6 +68,7 @@ build:
     - >
       docker build
       --cgroup-parent=build.slice
+      --provenance=false
       --build-arg NEXT_PUBLIC_BASE_URL=$PRODUCTION_URL
       -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       -t "$CI_REGISTRY_IMAGE:latest"
