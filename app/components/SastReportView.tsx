@@ -4,7 +4,7 @@ import { FileQuestion, ShieldCheck } from 'lucide-react';
 import EmptyState from '@/app/components/EmptyState';
 import ReportHeader from '@/app/components/ReportHeader';
 import SastReportExplorer from '@/app/components/SastReportExplorer';
-import type { StoredReport } from '@/app/lib/store';
+import { expiresAt, reportTtlLabel, type StoredReport } from '@/app/lib/store';
 import type { SastReport } from '@/app/types/vulnerability';
 
 // A GitLab-format report (SAST or Secret Detection — same shape), or its "not found" notice.
@@ -20,7 +20,7 @@ export default function SastReportView({
   if (!entry) {
     return (
       <EmptyState icon={FileQuestion}>
-        {label} with ID &quot;{id}&quot; not found.
+        {label} with ID &quot;{id}&quot; not found. Reports are deleted {reportTtlLabel()} after they are received.
       </EmptyState>
     );
   }
@@ -31,7 +31,7 @@ export default function SastReportView({
   return (
     <>
       <title>{`${label}: ${entry.repoName} - ${formattedDate}`}</title>
-      <ReportHeader kind={label} repoName={entry.repoName} date={formattedDate} />
+      <ReportHeader kind={label} repoName={entry.repoName} date={formattedDate} expiresAt={expiresAt(entry.timestamp)} />
 
       {vulnerabilities.length > 0 ? (
         <SastReportExplorer vulnerabilities={vulnerabilities} />

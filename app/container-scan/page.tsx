@@ -1,12 +1,12 @@
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { ChevronRight, Inbox } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 import { Card } from '@/app/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import EmptyState from '@/app/components/EmptyState';
 import SeverityBadge from '@/app/components/SeverityBadge';
-import { listReports } from '@/app/lib/store';
+import { expiresAt, listReports, reportTtlLabel } from '@/app/lib/store';
 import { normalizeSeverity, SEVERITIES, type Severity } from '@/app/lib/severity';
 
 // Read on every request: prerendered at build time it would freeze the build's (empty) data dir.
@@ -29,7 +29,10 @@ export default async function ContainerScansPage() {
     <>
       <div className="mb-8 space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Container Scan Reports</h1>
-        <p className="text-muted-foreground">Trivy image scans received from CI, newest first.</p>
+        <p className="text-muted-foreground">
+          Trivy image scans received from CI, newest first. Reports are deleted {reportTtlLabel()} after they are
+          received.
+        </p>
       </div>
 
       {reports.length === 0 ? (
@@ -43,6 +46,7 @@ export default async function ContainerScansPage() {
                 <TableHead>Image</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Vulnerabilities</TableHead>
+                <TableHead>Deleted in</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -79,6 +83,9 @@ export default async function ContainerScansPage() {
                           ))}
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {formatDistanceToNowStrict(expiresAt(report.timestamp))}
                     </TableCell>
                     <TableCell>
                       <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

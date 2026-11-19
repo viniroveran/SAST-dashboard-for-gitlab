@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Next.js 16 (App Router, TypeScript) dashboard that ingests security-scan reports from the TBI `backend` repo's GitLab CI pipeline (`backend/.gitlab-ci.yml`, `send_reports` job) and renders them for review. Covers four report kinds: SAST, secret detection, Trivy dependency (filesystem) scanning and Trivy container (image) scanning. Storage is plain files (`app/lib/store.ts`), no database: one JSON file per report under `$DATA_DIR/<kind>/<id>.json` plus an append-only `$DATA_DIR/<kind>/index.jsonl` (id, repo, timestamp, severity counts) that list pages read. `DATA_DIR` defaults to `./data`; the production image sets `/app/data`, where the compose volume is mounted.
 
+Reports are short-lived: `REPORT_TTL_SECONDS` (default 3600, 1 hour) after their timestamp they are no longer served (`getReport` returns null, `listReports` skips them), and `purgeExpiredReports()` deletes their files and compacts the index. It runs at server start and every 5 minutes from `instrumentation.ts` → `app/lib/report-expiry.ts`, inside the single Next process; index writers of a kind share a lock on `globalThis` because instrumentation and route handlers are separate bundles. Report pages and the Discord embed show when a report goes away.
+
 It used to be a single lowdb `db.json` read and rewritten whole on every request; at ~80 MB that ran Node out of heap on each dependency-scan webhook (502s and a crash loop, Nov 2026). Never go back to loading every report into memory. `scripts/migrate-db-json.mjs <db.json> <data dir>` moves an old `db.json` into the store (ids kept, re-runnable).
 
 ## Commands
@@ -27,6 +29,7 @@ Typed in `app/types/env.d.ts`; set via `.env.development` locally.
 - `NEXT_PUBLIC_BASE_URL` — used to build the `viewUrl` links returned by the webhook routes and sent to Discord.
 - `GITLAB_WEBHOOK_SECRET` — shared secret checked against the incoming `X-Gitlab-Token` header on every webhook route. Must match the value GitLab CI sends (`$GITLAB_WEBHOOK_SECRET` in `backend/.gitlab-ci.yml`'s `send_reports` job).
 - `DISCORD_WEBHOOK_URL` — optional; when set, `/api/sast-webhook` posts a summary embed to Discord after storing a report.
+- `REPORT_TTL_SECONDS` — optional; how long a report lives after it is received (default 3600).
 
 ## Webhook routes — payload contracts
 

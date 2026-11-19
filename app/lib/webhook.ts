@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { saveReport, type ReportKind, type ReportSummary } from '@/app/lib/store';
+import { expiresAt, saveReport, type ReportKind, type ReportSummary } from '@/app/lib/store';
 
 // The shared body of every report webhook: token check, payload field, storage, Discord.
 
@@ -33,7 +33,13 @@ function describe(summary: ReportSummary): string {
   return description;
 }
 
-async function notifyDiscord(title: string, summary: ReportSummary, id: string, viewUrl: string): Promise<void> {
+async function notifyDiscord(
+  title: string,
+  summary: ReportSummary,
+  id: string,
+  viewUrl: string,
+  deletedAt: Date,
+): Promise<void> {
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!discordWebhookUrl) {
     console.warn('DISCORD_WEBHOOK_URL is not set. Skipping Discord notification.');
@@ -52,6 +58,8 @@ async function notifyDiscord(title: string, summary: ReportSummary, id: string, 
         fields: [
           { name: 'Report ID', value: id, inline: true },
           { name: 'View Report', value: `[Click Here](${viewUrl})`, inline: true },
+          // Discord renders <t:unix:R> as a live relative time ("in 59 minutes") for each reader.
+          { name: 'Deleted', value: `<t:${Math.floor(deletedAt.getTime() / 1000)}:R>`, inline: true },
         ],
         timestamp: new Date().toISOString(),
         footer: { text: 'Vulnerabilities Dashboard' },
@@ -97,7 +105,7 @@ export function reportWebhook<T>(config: WebhookConfig<T>) {
       const entry = await saveReport(config.kind, repoName, report, summary);
       const viewUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${config.viewPath}/${entry.id}`;
 
-      await notifyDiscord(config.title(repoName), summary, entry.id, viewUrl);
+      await notifyDiscord(config.title(repoName), summary, entry.id, viewUrl, expiresAt(entry.timestamp));
 
       return NextResponse.json(
         { message: 'Report received and stored successfully.', reportId: entry.id, viewUrl },

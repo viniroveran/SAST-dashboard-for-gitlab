@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
-import { CalendarClock } from 'lucide-react';
+import { formatDistanceToNowStrict } from 'date-fns';
+import { CalendarClock, Hourglass } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 
-// Title block of a report page: kind, repository, scan date and optional extra metadata.
+// Title block of a report page: kind, repository, scan date, expiry and optional extra metadata.
 export default function ReportHeader({
   kind,
   repoName,
   date,
+  expiresAt,
   children,
 }: {
   kind: string;
   repoName: string;
   date: string;
+  expiresAt: Date;
   children?: ReactNode;
 }) {
   return (
@@ -22,6 +25,10 @@ export default function ReportHeader({
         <span className="flex items-center gap-1.5">
           <CalendarClock className="size-4" />
           {date}
+        </span>
+        <span className="flex items-center gap-1.5" title={expiresAt.toISOString()}>
+          <Hourglass className="size-4" />
+          Deleted in {formatDistanceToNowStrict(expiresAt)}
         </span>
         {children}
       </div>

@@ -3,7 +3,7 @@ import { FileQuestion, GitCommit, ShieldCheck } from 'lucide-react';
 import EmptyState from '@/app/components/EmptyState';
 import ReportHeader from '@/app/components/ReportHeader';
 import TrivyReportExplorer from '@/app/components/TrivyReportExplorer';
-import { getReport } from '@/app/lib/store';
+import { expiresAt, getReport, reportTtlLabel } from '@/app/lib/store';
 import { TrivyReport, TrivyVulnerability } from '@/app/types/trivy';
 
 interface Props {
@@ -19,7 +19,10 @@ export default async function DependencyScanPage({ params }: Props) {
     return (
       <>
         <title>Report Not Found</title>
-        <EmptyState icon={FileQuestion}>Dependency scan report with ID &quot;{id}&quot; not found.</EmptyState>
+        <EmptyState icon={FileQuestion}>
+          Dependency scan report with ID &quot;{id}&quot; not found. Reports are deleted {reportTtlLabel()} after they
+          are received.
+        </EmptyState>
       </>
     );
   }
@@ -34,7 +37,12 @@ export default async function DependencyScanPage({ params }: Props) {
   return (
     <>
       <title>{`Dependency Scan: ${reportEntry.repoName} - ${formattedDate}`}</title>
-      <ReportHeader kind="Dependency Scan" repoName={reportEntry.repoName} date={formattedDate}>
+      <ReportHeader
+        kind="Dependency Scan"
+        repoName={reportEntry.repoName}
+        date={formattedDate}
+        expiresAt={expiresAt(reportEntry.timestamp)}
+      >
         {report.Metadata?.Commit && (
           <span className="flex items-center gap-1.5 font-mono text-xs">
             <GitCommit className="size-4" />
