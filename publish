@@ -1,3 +1,8 @@
 #!/bin/bash
-
-docker login && docker build --build-arg NEXT_PUBLIC_BASE_URL=https://sast-dashboard.dumbledore.dev -t viniroveran/sast-dashboard:latest . && docker push viniroveran/sast-dashboard:latest
+# Manual fallback for the GitLab CI `build` job: builds and pushes :latest to this project's
+# registry. Does not deploy (that is `ssh sv2 ~/bin/deploy-sast-dashboard`).
+set -euo pipefail
+IMAGE=docker.dumbledore.dev/dumbledore.dev/sast-dashboard
+docker login docker.dumbledore.dev
+docker build --build-arg NEXT_PUBLIC_BASE_URL=https://sast-dashboard.dumbledore.dev -t "$IMAGE:latest" .
+docker push "$IMAGE:latest"

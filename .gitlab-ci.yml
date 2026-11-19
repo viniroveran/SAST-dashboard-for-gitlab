@@ -1,8 +1,9 @@
-# sast-dashboard — lint/typecheck, build the image to Docker Hub, deploy to sv2.
+# sast-dashboard — lint/typecheck, build the image to this project's registry, deploy to sv2.
 #
-# The image stays on Docker Hub (viniroveran/sast-dashboard, public): sv2's
-# reverse-proxy/compose/apps.yml pulls it from there without logging in, which is
-# what lets the deploy key below be locked to a single command.
+# sv2's reverse-proxy/compose/apps.yml runs $CI_REGISTRY_IMAGE:latest. sv2 keeps no login for
+# this registry: the deploy job writes its job token ($CI_REGISTRY_PASSWORD, dies with the job)
+# to the SSH session's stdin, and the script on sv2 pulls with it through a throwaway
+# DOCKER_CONFIG.
 #
 # Deploy: sv2's ~/.ssh/authorized_keys pins the CI key with
 #   restrict,command="/home/ubuntu/bin/deploy-sast-dashboard"
@@ -11,7 +12,6 @@
 # shell or forwarding. The script lives on sv2, not in this repo.
 #
 # Variables (Settings > CI/CD > Variables, protected + masked):
-#   DOCKERHUB_TOKEN  - Docker Hub personal access token (Read & Write) of viniroveran.
 #   SSH_PRIVATE_KEY  - the deploy key, base64 (`base64 -w0 id_ed25519`).
 
 stages:
@@ -25,8 +25,6 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 variables:
-  IMAGE: viniroveran/sast-dashboard
-  DOCKERHUB_USERNAME: viniroveran
   PRODUCTION_URL: https://sast-dashboard.dumbledore.dev
   DEPLOY_HOST: 15.204.246.135
   DEPLOY_USER: ubuntu
@@ -62,19 +60,19 @@ build:
     DOCKER_TLS_CERTDIR: "/certs"
   needs: ["test"]
   before_script:
-    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
     - >
       docker build
       --build-arg NEXT_PUBLIC_BASE_URL=$PRODUCTION_URL
-      -t "$IMAGE:$CI_COMMIT_SHORT_SHA"
-      -t "$IMAGE:latest"
+      -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      -t "$CI_REGISTRY_IMAGE:latest"
       .
     # The commit tag first: a rollback target exists before :latest moves.
-    - docker push "$IMAGE:$CI_COMMIT_SHORT_SHA"
-    - docker push "$IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
   after_script:
-    - docker logout
+    - docker logout "$CI_REGISTRY"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -93,8 +91,8 @@ deploy:
     - chmod 0600 ~/.ssh/deploy_key
     - echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
   script:
-    # The forced command runs the deploy; nothing needs to be passed.
-    - ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST"
+    # The forced command runs the deploy; the only input is the job token, on stdin.
+    - printf '%s\n' "$CI_REGISTRY_PASSWORD" | ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST"
     # busybox wget has no --tries/--waitretry: retry by hand.
     - for i in 1 2 3 4 5 6; do wget -q -O /dev/null "$PRODUCTION_URL/" && exit 0; sleep 5; done; echo "$PRODUCTION_URL did not answer" >&2; exit 1
   rules:
